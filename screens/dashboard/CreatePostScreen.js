@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import DashboardShell from './DashboardShell';
 
 const PURPLE = '#6C5CE7';
@@ -18,6 +19,7 @@ const SUGGESTIONS = [
 ];
 
 export default function CreatePostScreen() {
+  const router = useRouter();
   const [platform, setPlatform] = useState('Instagram');
   const [prompt, setPrompt] = useState(
     'Announce our new autumn ceramics collection — warm, handmade, small-batch. Highlight the earthy glaze finishes.'
@@ -28,7 +30,11 @@ export default function CreatePostScreen() {
   const handleGenerate = () => {
     if (!prompt.trim()) return;
     setGenerating(true);
-    setTimeout(() => setGenerating(false), 1200);
+    // Stands in for the generate endpoint, then hands off to the editor.
+    setTimeout(() => {
+      setGenerating(false);
+      router.push({ pathname: '/dashboard/edit', params: { platform, prompt, tone } });
+    }, 1200);
   };
 
   const applySuggestion = (text) => setPrompt(text);

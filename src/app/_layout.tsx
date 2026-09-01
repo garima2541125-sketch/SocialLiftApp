@@ -22,6 +22,7 @@ export default function RootLayout() {
           <Stack.Screen name="user-dashboard" />
           <Stack.Screen name="admin-dashboard" />
           <Stack.Screen name="dashboard/create" />
+          <Stack.Screen name="dashboard/edit" />
           <Stack.Screen name="dashboard/review-queue" />
           <Stack.Screen name="dashboard/analytics" />
           <Stack.Screen name="dashboard/brand-kit" />
