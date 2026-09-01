@@ -1,56 +1,92 @@
-# Welcome to your Expo app 👋
+# Social Lift
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An AI-assisted social media publishing app. You describe the post you want, Social Lift drafts the
+caption, hashtags and image, and everything routes through a review queue before it goes live.
 
-## Get started
+Built with [Expo](https://expo.dev) (SDK 57) and [Expo Router](https://docs.expo.dev/router/introduction).
+The same codebase runs in the browser, on iOS and on Android.
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Running it
 
 ```bash
-npm run reset-project
+npm install
+npx expo start --web     # browser
+npx expo start           # then press i / a for iOS / Android
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+The web build is the quickest way to click through everything.
 
-### Other setup steps
+## What's in it
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Onboarding and accounts
 
-## Learn more
+| Screen | Route | What it does |
+| --- | --- | --- |
+| Login | `/login` | Email login plus Google OAuth via `expo-auth-session` |
+| Register | `/next` | Account creation and role selection |
+| Profile details | `/profile-details` | Name, date of birth, location, interests |
+| Creator DNA | `/creator-dna` | Captures the creator's niche and voice |
+| Admin dashboard | `/admin-dashboard` | Owner-level view |
+| User dashboard | `/user-dashboard` | Creator-level view |
 
-To learn more about developing your project with Expo, look at the following resources:
+Auth state lives in `src/context/AuthContext.js` and persists through `AsyncStorage`. There is no
+backend yet — sign-in resolves against locally registered users, so the whole app is clickable
+without a server.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### The dashboard
 
-## Join the community
+Every dashboard screen shares `screens/dashboard/DashboardShell.js`, which provides the sidebar
+navigation, the header bar and the signed-in user footer.
 
-Join our community of developers creating universal apps.
+| Screen | Route | What it does |
+| --- | --- | --- |
+| Create | `/dashboard/create` | Pick a platform, write a prompt, set tone, attach a reference image |
+| Edit post | `/dashboard/edit` | Refine the generated caption, hashtags, tone and image |
+| Review queue | `/dashboard/review-queue` | Approve, reject or edit pending posts; filter by status |
+| Analytics | `/dashboard/analytics` | Reach goal, stat cards, conversion funnel, engagement over time, best-time heatmap |
+| Brand kit | `/dashboard/brand-kit` | Logo, colour palette and tone of voice |
+| Settings | `/dashboard/settings` | Profile, connected accounts, notifications, publishing defaults |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### The main flow
+
+```
+Create  ->  Generate  ->  Edit post  ->  Save & send to review  ->  Review queue  ->  Approve
+```
+
+This path is fully clickable today. Generation and publishing are stubbed with timeouts where the
+backend will eventually sit — each one is marked with a comment.
+
+## Design
+
+| Token | Value |
+| --- | --- |
+| Accent | `#6C5CE7` |
+| Sidebar | `#15141A` |
+| Page background | `#F4F2EC` |
+| Panel | `#FBFAF6` |
+| Border | `#E7E3D9` |
+| Highlight | `#F35D42` |
+
+Charts are drawn with plain `View`s rather than `react-native-svg`, which keeps the dependency list
+short and renders identically on web and native.
+
+## Project layout
+
+```
+src/app/              Expo Router routes (thin files that re-export a screen)
+src/context/          AuthContext
+src/components/       Shared components
+screens/              Top-level screens (auth, onboarding, dashboards)
+screens/dashboard/    Dashboard screens + DashboardShell
+```
+
+Routes stay deliberately thin — `src/app/dashboard/analytics.tsx` just renders
+`screens/dashboard/AnalyticsScreen.js` — so screens can be moved without touching routing.
+
+## Status
+
+The frontend is complete and navigable. Still to come:
+
+- A real backend for generation, scheduling and publishing
+- Live Instagram and LinkedIn OAuth (the flows are mocked today)
+- Replacing the placeholder analytics data with real metrics
