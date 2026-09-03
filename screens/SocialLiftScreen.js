@@ -26,7 +26,6 @@ function ThreeDCard({ children, style, onPress }) {
       onPress={onPress}
       style={({ hovered, pressed }) => [
         style,
-
         (hovered || pressed) && styles.threeDHover,
       ]}
     >
@@ -82,7 +81,6 @@ export default function SocialLiftScreen() {
             onPress={() => router.push("/")}
             style={({ hovered, pressed }) => [
               styles.logoContainer,
-
               (hovered || pressed) && styles.logoHover,
             ]}
           >
@@ -114,7 +112,6 @@ export default function SocialLiftScreen() {
               style={({ hovered }) => [
                 styles.navItem,
                 styles.activeNav,
-
                 hovered && styles.navItemHover,
               ]}
             >
@@ -184,29 +181,6 @@ export default function SocialLiftScreen() {
             </Pressable>
 
           </View>
-
-
-          {/* START BUTTON */}
-
-          <Pressable
-            onPress={goToRegister}
-            style={({ hovered, pressed }) => [
-              styles.startButton,
-
-              (hovered || pressed) &&
-                styles.startButtonHover,
-            ]}
-          >
-
-            <Text style={styles.startButtonText}>
-              Start Creating
-            </Text>
-
-            <Text style={styles.startArrow}>
-              →
-            </Text>
-
-          </Pressable>
 
         </View>
 
@@ -300,7 +274,6 @@ export default function SocialLiftScreen() {
                 onPress={goToRegister}
                 style={({ hovered, pressed }) => [
                   styles.primaryButton,
-
                   (hovered || pressed) &&
                     styles.primaryButtonHover,
                 ]}
@@ -326,7 +299,6 @@ export default function SocialLiftScreen() {
                 }}
                 style={({ hovered, pressed }) => [
                   styles.secondaryButton,
-
                   (hovered || pressed) &&
                     styles.secondaryButtonHover,
                 ]}
@@ -424,27 +396,21 @@ export default function SocialLiftScreen() {
                     <View
                       style={[
                         styles.browserDot,
-                        {
-                          backgroundColor: "#FF6B70",
-                        },
+                        { backgroundColor: "#FF6B70" },
                       ]}
                     />
 
                     <View
                       style={[
                         styles.browserDot,
-                        {
-                          backgroundColor: "#FFC34D",
-                        },
+                        { backgroundColor: "#FFC34D" },
                       ]}
                     />
 
                     <View
                       style={[
                         styles.browserDot,
-                        {
-                          backgroundColor: "#4BC47A",
-                        },
+                        { backgroundColor: "#4BC47A" },
                       ]}
                     />
 
@@ -463,10 +429,7 @@ export default function SocialLiftScreen() {
 
                   <View style={styles.sidebar}>
 
-                    <SideIcon
-                      icon="⌂"
-                      active
-                    />
+                    <SideIcon icon="⌂" active />
 
                     <SideIcon icon="✎" />
 
@@ -503,7 +466,6 @@ export default function SocialLiftScreen() {
                         onPress={goToRegister}
                         style={({ hovered, pressed }) => [
                           styles.generateButton,
-
                           (hovered || pressed) &&
                             styles.generateButtonHover,
                         ]}
@@ -605,81 +567,6 @@ export default function SocialLiftScreen() {
         </View>
 
 
-
-        {/* ====================================================
-            FOOTER
-        ==================================================== */}
-
-        <View style={styles.footer}>
-
-          <View style={styles.footerTop}>
-
-            <View style={styles.footerBrandCol}>
-
-              <View style={styles.footerLogoRow}>
-                <View style={styles.footerLogoBox}>
-                  <Text style={styles.footerLogoMark}>◆</Text>
-                </View>
-                <Text style={styles.footerBrandText}>Social Lift</Text>
-              </View>
-
-              <Text style={styles.footerTagline}>
-                AI-assisted social content, from prompt to published post.
-              </Text>
-
-              <View style={styles.footerSocialRow}>
-                <Pressable style={({ hovered }) => [styles.footerSocialIcon, hovered && styles.footerSocialIconHover]}>
-                  <Text style={styles.footerSocialIconText}>◎</Text>
-                </Pressable>
-                <Pressable style={({ hovered }) => [styles.footerSocialIcon, hovered && styles.footerSocialIconHover]}>
-                  <Text style={styles.footerSocialIconText}>in</Text>
-                </Pressable>
-                <Pressable style={({ hovered }) => [styles.footerSocialIcon, hovered && styles.footerSocialIconHover]}>
-                  <Text style={styles.footerSocialIconText}>X</Text>
-                </Pressable>
-              </View>
-
-            </View>
-
-            <View style={styles.footerLinksRow}>
-
-              <View style={styles.footerCol}>
-                <Text style={styles.footerColHeading}>Product</Text>
-                <Text style={styles.footerLink}>Features</Text>
-                <Text style={styles.footerLink}>Pricing</Text>
-                <Text style={styles.footerLink}>Workflow</Text>
-              </View>
-
-              <View style={styles.footerCol}>
-                <Text style={styles.footerColHeading}>Company</Text>
-                <Text style={styles.footerLink}>About</Text>
-                <Text style={styles.footerLink}>Careers</Text>
-                <Text style={styles.footerLink}>Contact</Text>
-              </View>
-
-              <View style={styles.footerCol}>
-                <Text style={styles.footerColHeading}>Resources</Text>
-                <Text style={styles.footerLink}>Help Center</Text>
-                <Text style={styles.footerLink}>Privacy Policy</Text>
-                <Text style={styles.footerLink}>Terms of Service</Text>
-              </View>
-
-            </View>
-
-          </View>
-
-          <View style={styles.footerDivider} />
-
-          <View style={styles.footerBottom}>
-            <Text style={styles.footerCopyright}>
-              © {new Date().getFullYear()} Social Lift. All rights reserved.
-            </Text>
-            <Text style={styles.footerMadeWith}>Made with ✦ for creators</Text>
-          </View>
-
-        </View>
-
-
       </ScrollView>
 
     </SafeAreaView>
@@ -728,9 +615,7 @@ function SideIcon({ icon, active }) {
     <Pressable
       style={({ hovered, pressed }) => [
         styles.sideIcon,
-
         active && styles.activeSideIcon,
-
         (hovered || pressed) &&
           styles.sideIconHover,
       ]}
@@ -739,7 +624,6 @@ function SideIcon({ icon, active }) {
       <Text
         style={[
           styles.sideIconText,
-
           active &&
             styles.activeSideIconText,
         ]}
@@ -780,7 +664,6 @@ function PlatformCard({
     <Pressable
       style={({ hovered, pressed }) => [
         styles.platformCard,
-
         (hovered || pressed) &&
           styles.platformCardHover,
       ]}
@@ -839,9 +722,7 @@ function FloatingCard({ text, style }) {
     <Pressable
       style={({ hovered, pressed }) => [
         styles.floatingCard,
-
         style,
-
         (hovered || pressed) &&
           styles.floatingCardHover,
       ]}
@@ -874,7 +755,6 @@ function StatCard({
     <Pressable
       style={({ hovered, pressed }) => [
         styles.statCard,
-
         (hovered || pressed) &&
           styles.statCardHover,
       ]}
@@ -883,9 +763,7 @@ function StatCard({
       <View
         style={[
           styles.statIcon,
-          {
-            backgroundColor: background,
-          },
+          { backgroundColor: background },
         ]}
       >
 
@@ -941,42 +819,30 @@ const styles = StyleSheet.create({
 
   backgroundPurple: {
     position: "absolute",
-
     width: 360,
     height: 360,
-
     borderRadius: 180,
-
     backgroundColor: "rgba(116, 91, 255, 0.055)",
-
     top: 120,
     left: -150,
   },
 
   backgroundPink: {
     position: "absolute",
-
     width: 330,
     height: 330,
-
     borderRadius: 165,
-
     backgroundColor: "rgba(255, 120, 190, 0.045)",
-
     top: 430,
     right: -140,
   },
 
   backgroundBlue: {
     position: "absolute",
-
     width: 300,
     height: 300,
-
     borderRadius: 150,
-
     backgroundColor: "rgba(80, 160, 255, 0.04)",
-
     bottom: 100,
     right: 180,
   },
@@ -989,35 +855,19 @@ const styles = StyleSheet.create({
   navbar: {
     marginHorizontal: 20,
     marginTop: 18,
-
     minHeight: 72,
-
     paddingHorizontal: 22,
-
     borderRadius: 22,
-
     backgroundColor: "rgba(255,255,255,0.94)",
-
     borderWidth: 1,
     borderColor: "#E9E9F1",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     justifyContent: "space-between",
-
     shadowColor: "#302B58",
-
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.07,
-
     shadowRadius: 25,
-
     elevation: 5,
   },
 
@@ -1029,7 +879,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
-
     gap: 10,
   },
 
@@ -1043,40 +892,26 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 36,
     height: 36,
-
     borderRadius: 11,
-
     backgroundColor: "#171824",
-
     justifyContent: "center",
     alignItems: "center",
-
     shadowColor: "#292740",
-
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
-
     shadowRadius: 8,
-
     elevation: 5,
   },
 
   logoGradient: {
     width: 14,
     height: 14,
-
     borderRadius: 4,
   },
 
   logoText: {
     fontSize: 18,
-
     fontWeight: "800",
-
     color: "#151625",
   },
 
@@ -1087,16 +922,13 @@ const styles = StyleSheet.create({
 
   navigation: {
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 4,
   },
 
   navItem: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-
     borderRadius: 12,
   },
 
@@ -1105,20 +937,11 @@ const styles = StyleSheet.create({
       { scale: 1.05 },
       { translateY: -2 },
     ],
-
     backgroundColor: "#F7F5FF",
-
     shadowColor: "#5B4DD0",
-
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-
     shadowRadius: 10,
-
     elevation: 4,
   },
 
@@ -1128,15 +951,12 @@ const styles = StyleSheet.create({
 
   navText: {
     fontSize: 13,
-
     color: "#707180",
   },
 
   activeNavText: {
     fontSize: 13,
-
     color: "#563DE4",
-
     fontWeight: "700",
   },
 
@@ -1148,70 +968,39 @@ const styles = StyleSheet.create({
   startButton: {
     paddingHorizontal: 20,
     paddingVertical: 13,
-
     borderRadius: 14,
-
     backgroundColor: "#6557ED",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 10,
-
     shadowColor: "#5749D1",
-
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
-
     shadowRadius: 12,
-
     elevation: 7,
   },
 
   startButtonHover: {
     transform: [
-      {
-        perspective: 800,
-      },
-      {
-        scale: 1.07,
-      },
-      {
-        translateY: -4,
-      },
-      {
-        rotateX: "2deg",
-      },
+      { perspective: 800 },
+      { scale: 1.07 },
+      { translateY: -4 },
+      { rotateX: "2deg" },
     ],
-
-    shadowOffset: {
-      width: 0,
-      height: 17,
-    },
-
+    shadowOffset: { width: 0, height: 17 },
     shadowOpacity: 0.38,
-
     shadowRadius: 20,
-
     elevation: 14,
   },
 
   startButtonText: {
     color: "#FFFFFF",
-
     fontSize: 13,
-
     fontWeight: "700",
   },
 
   startArrow: {
     color: "#FFFFFF",
-
     fontSize: 19,
   },
 
@@ -1222,33 +1011,23 @@ const styles = StyleSheet.create({
 
   hero: {
     paddingHorizontal: 55,
-
     paddingTop: 70,
-
     flexDirection: "row",
-
     alignItems: "center",
-
     minHeight: 620,
   },
 
   heroLeft: {
     flex: 0.9,
-
     paddingRight: 25,
-
     zIndex: 5,
   },
 
   heroRight: {
     flex: 1.1,
-
     height: 570,
-
     justifyContent: "center",
-
     alignItems: "center",
-
     position: "relative",
   },
 
@@ -1259,50 +1038,30 @@ const styles = StyleSheet.create({
 
   badge: {
     alignSelf: "flex-start",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 8,
-
     paddingHorizontal: 17,
-
     paddingVertical: 10,
-
     borderRadius: 30,
-
     backgroundColor: "#FFFFFF",
-
     borderWidth: 1,
-
     borderColor: "#E7E4F3",
-
     shadowColor: "#4A4373",
-
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
-
     shadowRadius: 15,
-
     elevation: 4,
   },
 
   badgeSparkle: {
     color: "#604BEA",
-
     fontSize: 17,
   },
 
   badgeText: {
     color: "#5745DB",
-
     fontSize: 13,
-
     fontWeight: "700",
   },
 
@@ -1313,28 +1072,14 @@ const styles = StyleSheet.create({
 
   threeDHover: {
     transform: [
-      {
-        perspective: 900,
-      },
-      {
-        scale: 1.035,
-      },
-      {
-        translateY: -5,
-      },
+      { perspective: 900 },
+      { scale: 1.035 },
+      { translateY: -5 },
     ],
-
     shadowColor: "#35305D",
-
-    shadowOffset: {
-      width: 0,
-      height: 18,
-    },
-
+    shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.16,
-
     shadowRadius: 25,
-
     elevation: 12,
   },
 
@@ -1345,25 +1090,10 @@ const styles = StyleSheet.create({
 
   heading: {
     marginTop: 28,
-
-    fontSize:
-      width > 900
-        ? 65
-        : width > 600
-        ? 55
-        : 42,
-
-    lineHeight:
-      width > 900
-        ? 69
-        : width > 600
-        ? 59
-        : 48,
-
+    fontSize: width > 900 ? 65 : width > 600 ? 55 : 42,
+    lineHeight: width > 900 ? 69 : width > 600 ? 59 : 48,
     letterSpacing: -2.5,
-
     fontWeight: "800",
-
     color: "#151827",
   },
 
@@ -1382,13 +1112,9 @@ const styles = StyleSheet.create({
 
   description: {
     marginTop: 25,
-
     maxWidth: 520,
-
     color: "#686A7B",
-
     fontSize: 16,
-
     lineHeight: 26,
   },
 
@@ -1399,55 +1125,37 @@ const styles = StyleSheet.create({
 
   features: {
     marginTop: 28,
-
     gap: 12,
   },
 
   feature: {
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 10,
   },
 
   checkCircle: {
     width: 21,
     height: 21,
-
     borderRadius: 11,
-
     backgroundColor: "#6357EA",
-
     justifyContent: "center",
-
     alignItems: "center",
-
     shadowColor: "#5B50D7",
-
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-
     shadowRadius: 7,
-
     elevation: 3,
   },
 
   checkText: {
     color: "#FFFFFF",
-
     fontSize: 11,
-
     fontWeight: "800",
   },
 
   featureText: {
     color: "#606273",
-
     fontSize: 14,
   },
 
@@ -1458,170 +1166,97 @@ const styles = StyleSheet.create({
 
   heroButtons: {
     marginTop: 34,
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 13,
   },
 
   primaryButton: {
     paddingHorizontal: 23,
-
     paddingVertical: 16,
-
     borderRadius: 15,
-
     backgroundColor: "#6257EF",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 15,
-
     shadowColor: "#5749D2",
-
-    shadowOffset: {
-      width: 0,
-      height: 11,
-    },
-
+    shadowOffset: { width: 0, height: 11 },
     shadowOpacity: 0.28,
-
     shadowRadius: 16,
-
     elevation: 7,
   },
 
   primaryButtonHover: {
     transform: [
-      {
-        perspective: 800,
-      },
-      {
-        scale: 1.06,
-      },
-      {
-        translateY: -5,
-      },
-      {
-        rotateX: "2deg",
-      },
+      { perspective: 800 },
+      { scale: 1.06 },
+      { translateY: -5 },
+      { rotateX: "2deg" },
     ],
-
-    shadowOffset: {
-      width: 0,
-      height: 20,
-    },
-
+    shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.4,
-
     shadowRadius: 25,
-
     elevation: 14,
   },
 
   primaryButtonText: {
     color: "#FFFFFF",
-
     fontSize: 14,
-
     fontWeight: "700",
   },
 
   buttonSparkle: {
     color: "#FFFFFF",
-
     fontSize: 16,
   },
 
   secondaryButton: {
     paddingHorizontal: 17,
-
     paddingVertical: 13,
-
     borderRadius: 15,
-
     backgroundColor: "#FFFFFF",
-
     borderWidth: 1,
-
     borderColor: "#E5E5EE",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 10,
-
     shadowColor: "#383653",
-
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-
+    shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.06,
-
     shadowRadius: 12,
-
     elevation: 3,
   },
 
   secondaryButtonHover: {
     transform: [
-      {
-        perspective: 800,
-      },
-      {
-        scale: 1.05,
-      },
-      {
-        translateY: -4,
-      },
+      { perspective: 800 },
+      { scale: 1.05 },
+      { translateY: -4 },
     ],
-
-    shadowOffset: {
-      width: 0,
-      height: 16,
-    },
-
+    shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.15,
-
     shadowRadius: 20,
-
     elevation: 9,
-
     borderColor: "#DCD8F7",
   },
 
   playCircle: {
     width: 29,
-
     height: 29,
-
     borderRadius: 15,
-
     backgroundColor: "#F0EFF9",
-
     justifyContent: "center",
-
     alignItems: "center",
   },
 
   playIcon: {
     color: "#5748D4",
-
     fontSize: 8,
   },
 
   secondaryButtonText: {
     color: "#3F4050",
-
     fontSize: 13,
-
     fontWeight: "700",
   },
 
@@ -1631,88 +1266,54 @@ const styles = StyleSheet.create({
   // ----------------------------------------------------------
 
   dashboardWrapper: {
-    width:
-      width > 1000
-        ? "90%"
-        : "96%",
-
+    width: width > 1000 ? "90%" : "96%",
     borderRadius: 27,
-
     shadowColor: "#38335E",
-
-    shadowOffset: {
-      width: 0,
-      height: 25,
-    },
-
+    shadowOffset: { width: 0, height: 25 },
     shadowOpacity: 0.15,
-
     shadowRadius: 32,
-
     elevation: 10,
-
     transform: [
-      {
-        perspective: 1000,
-      },
-      {
-        rotateY: "-5deg",
-      },
-      {
-        rotateX: "3deg",
-      },
-      {
-        rotateZ: "-2deg",
-      },
+      { perspective: 1000 },
+      { rotateY: "-5deg" },
+      { rotateX: "3deg" },
+      { rotateZ: "-2deg" },
     ],
   },
 
 
   dashboard: {
     borderRadius: 27,
-
     overflow: "hidden",
-
     backgroundColor: "#FFFFFF",
-
     borderWidth: 1,
-
     borderColor: "#EEEEF4",
   },
 
 
   browserBar: {
     height: 46,
-
     backgroundColor: "#FAFAFC",
-
     borderBottomWidth: 1,
-
     borderBottomColor: "#EEEEF3",
-
     justifyContent: "center",
-
     paddingHorizontal: 18,
   },
 
   browserDots: {
     flexDirection: "row",
-
     gap: 7,
   },
 
   browserDot: {
     width: 10,
-
     height: 10,
-
     borderRadius: 5,
   },
 
 
   dashboardBody: {
     flexDirection: "row",
-
     minHeight: 365,
   },
 
@@ -1723,42 +1324,26 @@ const styles = StyleSheet.create({
 
   sidebar: {
     width: 67,
-
     backgroundColor: "#20212F",
-
     paddingVertical: 23,
-
     alignItems: "center",
-
     gap: 16,
   },
 
   sideIcon: {
     width: 40,
-
     height: 40,
-
     borderRadius: 12,
-
     justifyContent: "center",
-
     alignItems: "center",
   },
 
   activeSideIcon: {
     backgroundColor: "#6959EA",
-
     shadowColor: "#6455DC",
-
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-
+    shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.35,
-
     shadowRadius: 10,
-
     elevation: 5,
   },
 
@@ -1767,13 +1352,11 @@ const styles = StyleSheet.create({
       { scale: 1.12 },
       { translateY: -3 },
     ],
-
     backgroundColor: "rgba(255,255,255,0.12)",
   },
 
   sideIconText: {
     color: "#A8A9B8",
-
     fontSize: 18,
   },
 
@@ -1788,19 +1371,14 @@ const styles = StyleSheet.create({
 
   dashboardMain: {
     flex: 1,
-
     padding: 28,
-
     backgroundColor: "#FAFAFD",
   },
 
   dashboardTitle: {
     fontSize: 18,
-
     fontWeight: "800",
-
     color: "#20212D",
-
     marginBottom: 20,
   },
 
@@ -1811,36 +1389,21 @@ const styles = StyleSheet.create({
 
   promptBox: {
     minHeight: 108,
-
     padding: 16,
-
     borderRadius: 17,
-
     backgroundColor: "#FFFFFF",
-
     borderWidth: 1,
-
     borderColor: "#E5E5EF",
-
     justifyContent: "space-between",
-
     shadowColor: "#343253",
-
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
-
     shadowRadius: 15,
-
     elevation: 3,
   },
 
   promptText: {
     color: "#A0A1AE",
-
     fontSize: 12,
   },
 
@@ -1851,32 +1414,17 @@ const styles = StyleSheet.create({
 
   generateButton: {
     alignSelf: "flex-end",
-
     paddingHorizontal: 16,
-
     paddingVertical: 10,
-
     borderRadius: 10,
-
     backgroundColor: "#6558EA",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 7,
-
     shadowColor: "#5748D2",
-
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
-
     shadowRadius: 9,
-
     elevation: 4,
   },
 
@@ -1885,25 +1433,19 @@ const styles = StyleSheet.create({
       { scale: 1.08 },
       { translateY: -3 },
     ],
-
     shadowOpacity: 0.35,
-
     shadowRadius: 15,
-
     elevation: 9,
   },
 
   generateButtonText: {
     color: "#FFFFFF",
-
     fontSize: 11,
-
     fontWeight: "700",
   },
 
   generateSparkle: {
     color: "#FFFFFF",
-
     fontSize: 12,
   },
 
@@ -1914,96 +1456,52 @@ const styles = StyleSheet.create({
 
   platformGrid: {
     flexDirection: "row",
-
     gap: 10,
-
     marginTop: 18,
   },
 
   platformCard: {
     flex: 1,
-
     minHeight: 78,
-
     padding: 12,
-
     backgroundColor: "#FFFFFF",
-
     borderRadius: 15,
-
     borderWidth: 1,
-
     borderColor: "#EBEBF2",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     shadowColor: "#343253",
-
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-
+    shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.06,
-
     shadowRadius: 12,
-
     elevation: 3,
-
     transform: [
-      {
-        perspective: 800,
-      },
+      { perspective: 800 },
     ],
   },
 
   platformCardHover: {
     transform: [
-      {
-        perspective: 800,
-      },
-      {
-        scale: 1.07,
-      },
-      {
-        translateY: -6,
-      },
-      {
-        rotateX: "3deg",
-      },
-      {
-        rotateY: "-3deg",
-      },
+      { perspective: 800 },
+      { scale: 1.07 },
+      { translateY: -6 },
+      { rotateX: "3deg" },
+      { rotateY: "-3deg" },
     ],
-
     borderColor: "#DCD8FA",
-
     shadowColor: "#39345D",
-
-    shadowOffset: {
-      width: 0,
-      height: 18,
-    },
-
+    shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.17,
-
     shadowRadius: 22,
-
     elevation: 12,
   },
 
 
   platformIcon: {
     width: 37,
-
     height: 37,
-
     borderRadius: 10,
-
     justifyContent: "center",
-
     alignItems: "center",
   },
 
@@ -2021,53 +1519,39 @@ const styles = StyleSheet.create({
 
   platformIconText: {
     color: "#FFFFFF",
-
     fontSize: 15,
-
     fontWeight: "800",
   },
 
   platformInfo: {
     marginLeft: 9,
-
     flex: 1,
   },
 
   platformName: {
     fontSize: 10,
-
     fontWeight: "800",
-
     color: "#252631",
   },
 
   platformStatus: {
     marginTop: 4,
-
     fontSize: 9,
-
     color: "#9697A4",
   },
 
   statusCircle: {
     width: 18,
-
     height: 18,
-
     borderRadius: 9,
-
     backgroundColor: "#DDF8E8",
-
     justifyContent: "center",
-
     alignItems: "center",
   },
 
   statusText: {
     color: "#29A860",
-
     fontSize: 9,
-
     fontWeight: "800",
   },
 
@@ -2078,24 +1562,13 @@ const styles = StyleSheet.create({
 
   floatingCard: {
     position: "absolute",
-
     justifyContent: "center",
-
     alignItems: "center",
-
     zIndex: 10,
-
     shadowColor: "#37325B",
-
-    shadowOffset: {
-      width: 0,
-      height: 13,
-    },
-
+    shadowOffset: { width: 0, height: 13 },
     shadowOpacity: 0.15,
-
     shadowRadius: 18,
-
     elevation: 8,
   },
 
@@ -2105,120 +1578,67 @@ const styles = StyleSheet.create({
       { translateY: -8 },
       { rotate: "5deg" },
     ],
-
-    shadowOffset: {
-      width: 0,
-      height: 23,
-    },
-
+    shadowOffset: { width: 0, height: 23 },
     shadowOpacity: 0.25,
-
     shadowRadius: 28,
-
     elevation: 15,
   },
 
   floatingText: {
     color: "#FFFFFF",
-
     fontWeight: "800",
   },
 
   instagramFloat: {
     width: 58,
-
     height: 58,
-
     borderRadius: 18,
-
     backgroundColor: "#FF7185",
-
     top: 55,
-
     left: 25,
-
     transform: [
-      {
-        rotate: "-8deg",
-      },
+      { rotate: "-8deg" },
     ],
-  },
-
-  instagramFloat: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: "#FF7185",
-    top: 55,
-    left: 25,
   },
 
   linkedinFloat: {
     width: 52,
-
     height: 52,
-
     borderRadius: 16,
-
     backgroundColor: "#5791EA",
-
     bottom: 75,
-
     left: 0,
   },
 
   likeFloat: {
     width: 56,
-
     height: 56,
-
     borderRadius: 17,
-
     backgroundColor: "#5E9AF0",
-
     bottom: 12,
-
     right: 100,
   },
 
   hashFloat: {
     width: 63,
-
     height: 63,
-
     borderRadius: 19,
-
     backgroundColor: "#7651E5",
-
     right: -5,
-
     bottom: 95,
   },
 
   paperPlane: {
     position: "absolute",
-
     right: 30,
-
     top: 10,
-
     fontSize: 58,
-
     color: "#568BF0",
-
     transform: [
-      {
-        rotate: "-25deg",
-      },
+      { rotate: "-25deg" },
     ],
-
     textShadowColor: "rgba(60,70,160,0.2)",
-
-    textShadowOffset: {
-      width: 7,
-      height: 10,
-    },
-
+    textShadowOffset: { width: 7, height: 10 },
     textShadowRadius: 6,
   },
 
@@ -2229,99 +1649,53 @@ const styles = StyleSheet.create({
 
   statsContainer: {
     paddingHorizontal: 45,
-
     marginTop: 10,
-
     flexDirection: "row",
-
     gap: 16,
   },
 
   statCard: {
     flex: 1,
-
     minHeight: 105,
-
     padding: 17,
-
     borderRadius: 19,
-
     backgroundColor: "#FFFFFF",
-
     borderWidth: 1,
-
     borderColor: "#E9E9F0",
-
     flexDirection: "row",
-
     alignItems: "center",
-
     gap: 13,
-
     shadowColor: "#34305A",
-
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
-
     shadowRadius: 15,
-
     elevation: 3,
-
     transform: [
-      {
-        perspective: 800,
-      },
+      { perspective: 800 },
     ],
   },
 
   statCardHover: {
     transform: [
-      {
-        perspective: 800,
-      },
-      {
-        scale: 1.06,
-      },
-      {
-        translateY: -7,
-      },
-      {
-        rotateX: "3deg",
-      },
-      {
-        rotateY: "-2deg",
-      },
+      { perspective: 800 },
+      { scale: 1.06 },
+      { translateY: -7 },
+      { rotateX: "3deg" },
+      { rotateY: "-2deg" },
     ],
-
     borderColor: "#DDD9FF",
-
     shadowColor: "#38345B",
-
-    shadowOffset: {
-      width: 0,
-      height: 19,
-    },
-
+    shadowOffset: { width: 0, height: 19 },
     shadowOpacity: 0.16,
-
     shadowRadius: 25,
-
     elevation: 12,
   },
 
   statIcon: {
     width: 48,
-
     height: 48,
-
     borderRadius: 14,
-
     justifyContent: "center",
-
     alignItems: "center",
   },
 
@@ -2331,155 +1705,13 @@ const styles = StyleSheet.create({
 
   statNumber: {
     fontSize: 20,
-
     fontWeight: "800",
-
     color: "#20212E",
   },
 
   statLabel: {
     marginTop: 4,
-
     fontSize: 10,
-
     color: "#898A97",
-  },
-
-
-  // ----------------------------------------------------------
-  // FOOTER
-  // ----------------------------------------------------------
-
-  footer: {
-    marginHorizontal: 20,
-    marginTop: 56,
-
-    paddingTop: 36,
-    paddingHorizontal: 28,
-    paddingBottom: 24,
-
-    borderRadius: 22,
-
-    backgroundColor: "#171824",
-  },
-
-  footerTop: {
-    flexDirection: width > 700 ? "row" : "column",
-    justifyContent: "space-between",
-    gap: 32,
-  },
-
-  footerBrandCol: {
-    maxWidth: 320,
-  },
-
-  footerLogoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-
-  footerLogoBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: "#6558EA",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  footerLogoMark: {
-    color: "#fff",
-    fontSize: 13,
-  },
-
-  footerBrandText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  footerTagline: {
-    color: "#9E9FB0",
-    fontSize: 12.5,
-    lineHeight: 19,
-    marginBottom: 18,
-  },
-
-  footerSocialRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  footerSocialIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  footerSocialIconHover: {
-    backgroundColor: "#6558EA",
-    borderColor: "#6558EA",
-  },
-
-  footerSocialIconText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  footerLinksRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 36,
-  },
-
-  footerCol: {
-    minWidth: 120,
-  },
-
-  footerColHeading: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 12,
-    letterSpacing: 0.4,
-  },
-
-  footerLink: {
-    color: "#9E9FB0",
-    fontSize: 12.5,
-    marginBottom: 10,
-  },
-
-  footerDivider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    marginTop: 32,
-    marginBottom: 18,
-  },
-
-  footerBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
-  footerCopyright: {
-    color: "#7B7C8C",
-    fontSize: 11.5,
-  },
-
-  footerMadeWith: {
-    color: "#7B7C8C",
-    fontSize: 11.5,
   },
 });

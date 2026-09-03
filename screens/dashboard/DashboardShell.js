@@ -1,106 +1,254 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../src/context/AuthContext';
 
-const PURPLE = '#6C5CE7';
+import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
+
 const SIDEBAR_BG = '#15141A';
 const SIDEBAR_TEXT = '#9A98A5';
 const SIDEBAR_TEXT_MUTED = '#6B6976';
-const PAGE_BG = '#F4F2EC';
-const BORDER = '#E7E3D9';
-const DARK_TEXT = '#1A1A1A';
 const AVATAR_ORANGE = '#F35D42';
 
 const NAV_ITEMS = [
-  { key: 'create', label: 'Create', icon: '✏️', route: '/dashboard/create' },
-  { key: 'review-queue', label: 'Review Queue', icon: '🗂️', route: '/dashboard/review-queue' },
-  { key: 'analytics', label: 'Analytics', icon: '📊', route: '/dashboard/analytics' },
-  { key: 'brand-kit', label: 'Brand Kit', icon: '🎨', route: '/dashboard/brand-kit' },
-  { key: 'settings', label: 'Settings', icon: '⚙️', route: '/dashboard/settings' },
+  { key: 'overview', label: 'Overview',
+     icon: '🏠', route: '/dashboard/overview'
+   },
+  {
+    key: 'create',
+    label: 'Create',
+    icon: '✏️',
+    route: '/dashboard/create',
+  },
+  {
+    key: 'review-queue',
+    label: 'Review Queue',
+    icon: '🗂️',
+    route: '/dashboard/review-queue',
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    icon: '📊',
+    route: '/dashboard/analytics',
+  },
+  {
+    key: 'brand-kit',
+    label: 'Brand Kit',
+    icon: '🎨',
+    route: '/dashboard/brand-kit',
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: '⚙️',
+    route: '/dashboard/settings',
+  },
 ];
 
-function NavItem({ item, active, onPress }) {
+function NavItem({ item, active, onPress, theme }) {
   return (
     <TouchableOpacity
-      style={[styles.navItem, active && styles.navItemActive]}
+      style={[
+        styles.navItem,
+        active && {
+          backgroundColor: theme.purple,
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[styles.navIconWrap, active && styles.navIconWrapActive]}>
+      <View style={styles.navIconWrap}>
         <Text style={styles.navIcon}>{item.icon}</Text>
       </View>
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+
+      <Text
+        style={[
+          styles.navLabel,
+          active && styles.navLabelActive,
+        ]}
+      >
+        {item.label}
+      </Text>
     </TouchableOpacity>
   );
 }
 
-// Shared chrome for every dashboard page: dark sidebar with nav + user
-// footer on the left, a white header bar + scrollable content area on the
-// right. Pass `active` (matching a NAV_ITEMS key), `title` for the header,
-// and optionally `headerRight` for a page-specific control (e.g. a toggle).
-export default function DashboardShell({ active, title, headerRight, children, scroll = true }) {
+// Shared dashboard layout:
+// dark sidebar + header + scrollable/static content area
+export default function DashboardShell({
+  active,
+  title,
+  headerRight,
+  children,
+  scroll = true,
+}) {
   const router = useRouter();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
-  const initials = (user?.name || 'U').trim().charAt(0).toUpperCase();
+  const initials = (user?.name || 'U')
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
   const roleLabel = user?.role === 'admin' ? 'Owner' : 'Creator';
 
   const Content = scroll ? ScrollView : View;
+
   const contentProps = scroll
-    ? { contentContainerStyle: styles.scrollContent, style: { flex: 1 } }
-    : { style: styles.staticContent };
+    ? {
+        contentContainerStyle: [
+          styles.scrollContent,
+          {
+            backgroundColor: theme.background,
+          },
+        ],
+        style: {
+          flex: 1,
+          backgroundColor: theme.background,
+        },
+      }
+    : {
+        style: [
+          styles.staticContent,
+          {
+            backgroundColor: theme.background,
+          },
+        ],
+      };
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: theme.background,
+        },
+      ]}
+    >
+      {/* ================= SIDEBAR ================= */}
       <View style={styles.sidebar}>
         <View>
+          {/* Brand */}
           <View style={styles.brandRow}>
-            <View style={styles.brandDot} />
-            <Text style={styles.brandText}>Social Lift</Text>
+            <View
+              style={[
+                styles.brandDot,
+                {
+                  backgroundColor: theme.purple,
+                },
+              ]}
+            />
+
+            <Text style={styles.brandText}>
+              Social Lift
+            </Text>
           </View>
 
-          <Text style={styles.menuLabel}>MENU</Text>
+          {/* Menu heading */}
+          <Text style={styles.menuLabel}>
+            MENU
+          </Text>
+
+          {/* Navigation */}
           <View style={styles.navList}>
             {NAV_ITEMS.map((item) => (
               <NavItem
                 key={item.key}
                 item={item}
                 active={item.key === active}
+                theme={theme}
                 onPress={() => router.push(item.route)}
               />
             ))}
           </View>
         </View>
 
+        {/* ================= USER FOOTER ================= */}
         <TouchableOpacity
-          style={styles.userFooter}
+          style={[
+            styles.userFooter,
+            {
+              borderTopColor: '#28262F',
+            },
+          ]}
           activeOpacity={0.85}
-          onPress={() => router.push('/dashboard/settings')}
+          onPress={() =>
+            router.push('/dashboard/settings')
+          }
         >
-          {user?.photo ? (
-            <View style={styles.userAvatarWrap}>
-              <Text style={styles.userAvatarText}>{initials}</Text>
-            </View>
-          ) : (
-            <View style={[styles.userAvatarWrap, { backgroundColor: AVATAR_ORANGE }]}>
-              <Text style={styles.userAvatarText}>{initials}</Text>
-            </View>
-          )}
+          <View
+            style={[
+              styles.userAvatarWrap,
+              {
+                backgroundColor: AVATAR_ORANGE,
+              },
+            ]}
+          >
+            <Text style={styles.userAvatarText}>
+              {initials}
+            </Text>
+          </View>
+
           <View>
-            <Text style={styles.userName}>{user?.name || 'Your account'}</Text>
-            <Text style={styles.userRole}>{roleLabel}</Text>
+            <Text style={styles.userName}>
+              {user?.name || 'Your account'}
+            </Text>
+
+            <Text style={styles.userRole}>
+              {roleLabel}
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.mainCol}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {headerRight ? <View>{headerRight}</View> : null}
+      {/* ================= MAIN AREA ================= */}
+      <View
+        style={[
+          styles.mainCol,
+          {
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
+        {/* Header */}
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.card,
+              borderBottomColor: theme.border,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                color: theme.text,
+              },
+            ]}
+          >
+            {title}
+          </Text>
+
+          {headerRight ? (
+            <View>{headerRight}</View>
+          ) : null}
         </View>
 
-        <Content {...contentProps}>{children}</Content>
+        {/* Page Content */}
+        <Content {...contentProps}>
+          {children}
+        </Content>
       </View>
     </View>
   );
@@ -109,7 +257,17 @@ export default function DashboardShell({ active, title, headerRight, children, s
 const isWeb = Platform.OS === 'web';
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: PAGE_BG, ...(isWeb ? { minHeight: '100vh' } : {}) },
+  root: {
+    flex: 1,
+    flexDirection: 'row',
+    ...(isWeb
+      ? {
+          minHeight: '100vh',
+        }
+      : {}),
+  },
+
+  /* ================= SIDEBAR ================= */
 
   sidebar: {
     width: 220,
@@ -118,12 +276,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     justifyContent: 'space-between',
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, paddingHorizontal: 4 },
-  brandDot: { width: 22, height: 22, borderRadius: 6, backgroundColor: PURPLE, marginRight: 9 },
-  brandText: { color: '#fff', fontWeight: '800', fontSize: 15.5, fontFamily: 'serif' },
 
-  menuLabel: { color: SIDEBAR_TEXT_MUTED, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, paddingHorizontal: 4 },
-  navList: { gap: 3 },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 28,
+    paddingHorizontal: 4,
+  },
+
+  brandDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    marginRight: 9,
+  },
+
+  brandText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15.5,
+    fontFamily: 'serif',
+  },
+
+  menuLabel: {
+    color: SIDEBAR_TEXT_MUTED,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+
+  navList: {
+    gap: 3,
+  },
+
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -131,32 +318,93 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 9,
   },
-  navItemActive: { backgroundColor: PURPLE },
-  navIconWrap: { width: 22, alignItems: 'center', marginRight: 10 },
-  navIconWrapActive: {},
-  navIcon: { fontSize: 14 },
-  navLabel: { color: SIDEBAR_TEXT, fontSize: 13, fontWeight: '600' },
-  navLabelActive: { color: '#fff', fontWeight: '700' },
 
-  userFooter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#28262F' },
-  userAvatarWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  userAvatarText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  userName: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
-  userRole: { color: SIDEBAR_TEXT_MUTED, fontSize: 10.5, marginTop: 1 },
+  navIconWrap: {
+    width: 22,
+    alignItems: 'center',
+    marginRight: 10,
+  },
 
-  mainCol: { flex: 1 },
+  navIcon: {
+    fontSize: 14,
+  },
+
+  navLabel: {
+    color: SIDEBAR_TEXT,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  navLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  /* ================= USER FOOTER ================= */
+
+  userFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+
+  userAvatarWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  userAvatarText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  userName: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+
+  userRole: {
+    color: SIDEBAR_TEXT_MUTED,
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+
+  /* ================= MAIN AREA ================= */
+
+  mainCol: {
+    flex: 1,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 32,
     paddingVertical: 18,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: BORDER,
   },
-  headerTitle: { fontSize: 15, fontWeight: '700', color: DARK_TEXT },
 
-  scrollContent: { padding: 32, paddingBottom: 60 },
-  staticContent: { flex: 1, padding: 32 },
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  scrollContent: {
+    padding: 32,
+    paddingBottom: 60,
+    flexGrow: 1,
+  },
+
+  staticContent: {
+    flex: 1,
+    padding: 32,
+  },
 });

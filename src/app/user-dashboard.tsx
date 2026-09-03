@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 
-// This screen has been superseded by the sidebar dashboard at /dashboard/create.
-// Kept as a redirect so any old links/back-navigation still land somewhere valid.
+// Superseded by the sidebar dashboard — creators now land on their Overview.
 export default function UserDashboardRoute() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/dashboard/create');
+    router.replace('/dashboard/overview');
   }, []);
 
   return null;
