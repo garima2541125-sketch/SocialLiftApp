@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
-  Alert,
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
@@ -14,6 +13,7 @@ import { useRouter } from 'expo-router';
 import DashboardShell from './DashboardShell';
 
 import { useTheme } from '../../src/context/ThemeContext';
+import { showAlert } from '../../src/utils/alert';
 
 export default function SecurityScreen() {
   const router = useRouter();
@@ -134,7 +134,7 @@ export default function SecurityScreen() {
               { borderColor: theme.border },
             ]}
             onPress={() =>
-              Alert.alert(
+              showAlert(
                 'Change password',
                 'Connect this button to your authentication provider.'
               )
@@ -165,7 +165,7 @@ export default function SecurityScreen() {
               { borderColor: theme.border },
             ]}
             onPress={() =>
-              Alert.alert(
+              showAlert(
                 'Active sessions',
                 'You currently have one active session.'
               )

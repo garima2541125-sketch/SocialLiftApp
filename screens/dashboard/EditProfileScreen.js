@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
@@ -15,6 +14,7 @@ import DashboardShell from './DashboardShell';
 
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { showAlert } from '../../src/utils/alert';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState(user?.email || '');
 
   const handleSave = () => {
-    Alert.alert(
+    showAlert(
       'Information saved',
       'Your profile information has been updated.'
     );

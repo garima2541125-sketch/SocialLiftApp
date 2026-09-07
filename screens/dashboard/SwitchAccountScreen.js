@@ -4,11 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DashboardShell from './DashboardShell';
 import { useTheme } from '../../src/context/ThemeContext';
+import { showAlert } from '../../src/utils/alert';
 
 const ACCOUNTS = [
   {
@@ -38,7 +38,7 @@ export default function SwitchAccountScreen() {
   };
 
   const handleAddAccount = () => {
-    Alert.alert(
+    showAlert(
       'Add another account',
       'Account connection will be available here.'
     );

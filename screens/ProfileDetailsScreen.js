@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
+import { showAlert } from '../src/utils/alert';
 
 const PURPLE = '#6C5CE7';
 const DARK_TEXT = '#1A1A1A';
@@ -26,6 +27,7 @@ export default function ProfileDetailsScreen() {
 
   const [dob, setDob] = useState('');
   const [location, setLocation] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Safety: if someone lands here without an in-progress signup, send them back.
   useEffect(() => {
@@ -38,15 +40,29 @@ export default function ProfileDetailsScreen() {
   // That's now handled by the Creator DNA swipe screen instead — this
   // screen just saves the basics and hands off.
   const handleContinue = async () => {
-    const updated = await updateProfileDetails({ dob, location });
-    if (!updated) return;
-    router.replace('/creator-dna');
+    if (saving) return;
+    try {
+      setSaving(true);
+      await updateProfileDetails({ dob, location });
+      router.replace('/creator-dna');
+    } catch (error) {
+      showAlert('Could not save', error?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSkip = async () => {
-    const updated = await updateProfileDetails({ dob, location, interests: [], genre: [] });
-    if (!updated) return;
-    router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    if (saving) return;
+    try {
+      setSaving(true);
+      const updated = await updateProfileDetails({ dob, location, interests: [], genre: [] });
+      router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    } catch (error) {
+      showAlert('Could not save', error?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -95,11 +111,18 @@ export default function ProfileDetailsScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.finishButton} onPress={handleContinue} activeOpacity={0.85}>
-              <Text style={styles.finishButtonText}>Continue to Creator DNA →</Text>
+            <TouchableOpacity
+              style={styles.finishButton}
+              onPress={handleContinue}
+              activeOpacity={0.85}
+              disabled={saving}
+            >
+              <Text style={styles.finishButtonText}>
+                {saving ? 'Saving…' : 'Continue to Creator DNA →'}
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleSkip}>
+            <TouchableOpacity onPress={handleSkip} disabled={saving}>
               <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
           </View>

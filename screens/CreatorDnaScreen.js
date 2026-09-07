@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
+import { showAlert } from '../src/utils/alert';
 
 const PURPLE = '#6C5CE7';
 const DARK_TEXT = '#1A1A1A';
@@ -256,25 +257,35 @@ export default function CreatorDnaScreen() {
   }, [topicScores, finished]);
 
   const handleContinue = async () => {
-    setSaving(true);
-    const interests = topInterests.length > 0 ? topInterests : ['Lifestyle'];
-    const genre = topGenres.length > 0 ? topGenres : ['Educational'];
-    const updated = await updateProfileDetails({
-      interests,
-      genre,
-      creatorDNA: { archetype, topicScores, genreScores, completedAt: Date.now() },
-    });
-    setSaving(false);
-    if (!updated) return;
-    router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    if (saving) return;
+    try {
+      setSaving(true);
+      const interests = topInterests.length > 0 ? topInterests : ['Lifestyle'];
+      const genre = topGenres.length > 0 ? topGenres : ['Educational'];
+      const updated = await updateProfileDetails({
+        interests,
+        genre,
+        creatorDNA: { archetype, topicScores, genreScores, completedAt: Date.now() },
+      });
+      router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    } catch (error) {
+      showAlert('Could not save', error?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSkip = async () => {
-    setSaving(true);
-    const updated = await updateProfileDetails({ interests: [], genre: [] });
-    setSaving(false);
-    if (!updated) return;
-    router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    if (saving) return;
+    try {
+      setSaving(true);
+      const updated = await updateProfileDetails({ interests: [], genre: [] });
+      router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
+    } catch (error) {
+      showAlert('Could not save', error?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (finished) {
