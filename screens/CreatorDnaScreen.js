@@ -215,6 +215,7 @@ export default function CreatorDnaScreen() {
 
   const [topicScores, setTopicScores] = useState({});
   const [genreScores, setGenreScores] = useState({});
+  const [responses, setResponses] = useState([]);
   const [cardIndex, setCardIndex] = useState(0);
   const [finished, setFinished] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -226,6 +227,10 @@ export default function CreatorDnaScreen() {
     const delta = result === 'like' ? 1 : result === 'dislike' ? -0.5 : 0.2;
     setTopicScores((prev) => ({ ...prev, [currentCard.topic]: (prev[currentCard.topic] || 0) + delta }));
     setGenreScores((prev) => ({ ...prev, [currentCard.genre]: (prev[currentCard.genre] || 0) + delta }));
+    setResponses((prev) => [
+      ...prev,
+      { cardId: currentCard.id, topic: currentCard.topic, genre: currentCard.genre, result },
+    ]);
   };
 
   const handleDecide = (result) => {
@@ -265,7 +270,7 @@ export default function CreatorDnaScreen() {
       const updated = await updateProfileDetails({
         interests,
         genre,
-        creatorDNA: { archetype, topicScores, genreScores, completedAt: Date.now() },
+        creatorDNA: { archetype, topicScores, genreScores, responses, completedAt: Date.now() },
       });
       router.replace(updated.role === 'admin' ? '/admin-dashboard' : '/dashboard/create');
     } catch (error) {
