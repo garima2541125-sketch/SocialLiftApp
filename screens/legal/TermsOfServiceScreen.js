@@ -6,11 +6,14 @@ import LegalPageLayout, {
   CONTACT_EMAIL,
 } from "./LegalPageLayout";
 
-const LAST_UPDATED = "September 9, 2026";
+export const LAST_UPDATED = "September 9, 2026";
 
-export default function TermsOfServiceScreen() {
+// The Terms body is exported on its own so the account-creation flow can
+// render the same legal text inside its "accept before continuing" step,
+// without duplicating it.
+export function TermsBody() {
   return (
-    <LegalPageLayout title="Terms of Service" lastUpdated={LAST_UPDATED}>
+    <>
       <Paragraph>
         These Terms of Service ("Terms") govern your access to and use of
         Social Lift (the "Service"), a platform that lets you connect your
@@ -130,6 +133,14 @@ export default function TermsOfServiceScreen() {
           at {CONTACT_EMAIL}.
         </Paragraph>
       </Section>
+    </>
+  );
+}
+
+export default function TermsOfServiceScreen() {
+  return (
+    <LegalPageLayout title="Terms of Service" lastUpdated={LAST_UPDATED}>
+      <TermsBody />
     </LegalPageLayout>
   );
 }

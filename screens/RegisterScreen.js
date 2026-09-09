@@ -109,7 +109,7 @@ const [loading, setLoading] = useState(false);
 
       showAlert(
         'Google Sign Up Failed',
-        'Unable to get your Google profile.'
+        err?.message || 'Unable to get your Google profile.'
       );
     } finally {
       setGoogleLoading(false);
@@ -196,8 +196,9 @@ const handleCreateAccount = async () => {
 
     console.log('Profile completed');
 
-    // 3. Collect the rest of their details (DOB, location), then preferences
-    router.replace('/profile-details');
+    // 3. Require Terms of Service agreement before collecting the rest of
+    // their details (DOB, location) and preferences.
+    router.replace('/accept-terms');
 
   } catch (error) {
     console.log(

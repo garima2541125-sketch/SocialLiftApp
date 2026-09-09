@@ -182,6 +182,21 @@ export default function SocialLiftScreen() {
 
           </View>
 
+
+          {/* PRIVACY POLICY BUTTON */}
+
+          <Pressable
+            onPress={() => router.push("/privacy")}
+            style={({ hovered, pressed }) => [
+              styles.privacyButton,
+              (hovered || pressed) && styles.privacyButtonHover,
+            ]}
+          >
+            <Text style={styles.privacyButtonText}>
+              Privacy Policy
+            </Text>
+          </Pressable>
+
         </View>
 
 
@@ -989,6 +1004,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#563DE4",
     fontWeight: "700",
+  },
+
+
+  // ----------------------------------------------------------
+  // PRIVACY POLICY BUTTON
+  // ----------------------------------------------------------
+
+  privacyButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E5EE",
+    backgroundColor: "#FFFFFF",
+  },
+
+  privacyButtonHover: {
+    backgroundColor: "#F7F5FF",
+    borderColor: "#DCD8F7",
+  },
+
+  privacyButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5B4DD0",
   },
 
 
