@@ -567,6 +567,37 @@ export default function SocialLiftScreen() {
         </View>
 
 
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
+
+        <View style={styles.footer}>
+
+          <View style={styles.footerLinks}>
+
+            <Pressable onPress={() => router.push("/privacy")}>
+              <Text style={styles.footerLinkText}>
+                Privacy Policy
+              </Text>
+            </Pressable>
+
+            <Text style={styles.footerDivider}>·</Text>
+
+            <Pressable onPress={() => router.push("/terms")}>
+              <Text style={styles.footerLinkText}>
+                Terms of Service
+              </Text>
+            </Pressable>
+
+          </View>
+
+          <Text style={styles.footerCopyright}>
+            © {new Date().getFullYear()} Social Lift. All rights reserved.
+          </Text>
+
+        </View>
+
+
       </ScrollView>
 
     </SafeAreaView>
@@ -1713,5 +1744,42 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 10,
     color: "#898A97",
+  },
+
+
+  // ----------------------------------------------------------
+  // FOOTER
+  // ----------------------------------------------------------
+
+  footer: {
+    marginTop: 50,
+    paddingTop: 26,
+    paddingHorizontal: 24,
+    borderTopWidth: 1,
+    borderTopColor: "#E9E9F1",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  footerLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  footerLinkText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5B4DD0",
+  },
+
+  footerDivider: {
+    fontSize: 13,
+    color: "#C7C8D6",
+  },
+
+  footerCopyright: {
+    fontSize: 12,
+    color: "#B3B4C1",
   },
 });

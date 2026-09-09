@@ -22,6 +22,8 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="next" />
               <Stack.Screen name="login" />
+              <Stack.Screen name="privacy" />
+              <Stack.Screen name="terms" />
               <Stack.Screen name="profile-details" />
               <Stack.Screen name="user-dashboard" />
               <Stack.Screen name="admin-dashboard" />
