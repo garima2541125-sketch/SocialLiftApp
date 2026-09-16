@@ -25,6 +25,16 @@ function assertReady() {
   }
 }
 
+function logAuthError(label, error) {
+  console.error(`[firebaseProvider] ${label}`, {
+    code: error?.code,
+    message: error?.message,
+    customData: error?.customData,
+    name: error?.name,
+    stack: error?.stack,
+  });
+}
+
 function mapAuthError(error) {
   switch (error?.code) {
     case 'auth/email-already-in-use':
@@ -119,6 +129,7 @@ async function register(name, email, password) {
 
     return await loadProfile(cred.user);
   } catch (error) {
+    logAuthError('register failed', error);
     throw new Error(mapAuthError(error));
   }
 }
@@ -134,6 +145,7 @@ async function login(email, password) {
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
     return await loadProfile(cred.user);
   } catch (error) {
+    logAuthError('login failed', error);
     throw new Error(mapAuthError(error));
   }
 }
@@ -167,6 +179,7 @@ async function googleLogin({ idToken }) {
 
     return await loadProfile(result.user);
   } catch (error) {
+    logAuthError('googleLogin failed', error);
     throw new Error(mapAuthError(error));
   }
 }

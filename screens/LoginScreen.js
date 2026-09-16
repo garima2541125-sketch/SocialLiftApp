@@ -113,7 +113,7 @@ export default function LoginScreen() {
 
       showAlert(
         'Google Login Failed',
-        'Unable to complete Google login. Please try again.'
+        err?.message || 'Unable to complete Google login. Please try again.'
       );
     } finally {
       setGoogleLoading(false);
