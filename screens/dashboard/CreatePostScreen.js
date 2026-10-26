@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,15 @@ import {
   Pressable,
   Image,
   ScrollView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DashboardShell from './DashboardShell';
+import { ScaledTemplate, getTemplate } from './templates';
+import { composePost } from '../../src/ai/composePost';
+import { buildPostTypes, isReferenceType } from '../../src/ai/postTypes';
+import { useBrandKit } from '../../src/context/BrandKitContext';
+import { showAlert } from '../../src/utils/alert';
 
 const PURPLE = '#6C5CE7';
 const DARK_TEXT = '#1A1A1A';
@@ -44,7 +50,31 @@ const TONE_OPTIONS = [
 
 const CUSTOM_TONE = 'Custom';
 
-const MAX_IMAGE_BYTES = 150 * 1024;
+// Uploaded images never leave this computer (only the local Qwen3-VL sees
+// them), so they can be reasonably large.
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGES = 4;
+
+// What Qwen3-VL decided each uploaded image is, as shown next to it.
+const IMAGE_KIND_LABELS = {
+  person: 'Person photo',
+  group: 'Group photo',
+  logo: 'Logo',
+  event: 'Event photo',
+  product: 'Product photo',
+  poster: 'Poster / graphic',
+  document: 'Document',
+  other: 'Image',
+};
+
+// Labels for template fields in the Details panel (keys from postTypes.js).
+const FIELD_INPUTS = {
+  studentName: { label: 'Student name', placeholder: 'e.g. Pragya Shrivastav' },
+  company: { label: 'Company', placeholder: 'e.g. AAJ Supply Chain' },
+  packageText: { label: 'Package (optional)', placeholder: 'e.g. 40 LPA' },
+  branch: { label: 'Branch', placeholder: 'e.g. CSE' },
+  batch: { label: 'Batch year', placeholder: 'e.g. 2027' },
+};
 
 const ASPECT_OPTIONS = [
   { key: 'original', label: 'Original', ratio: 1.8 },
@@ -210,6 +240,14 @@ function AdjustStepper({
 ======================================================= */
 
 export default function CreatePostScreen() {
+  const { brandKit } = useBrandKit();
+
+  // Built-in post types plus this account's reference designs.
+  const postTypes = useMemo(
+    () => buildPostTypes(brandKit.references),
+    [brandKit.references]
+  );
+
   const [platform, setPlatform] = useState('Instagram');
 
   const [prompt, setPrompt] = useState(
@@ -229,7 +267,12 @@ export default function CreatePostScreen() {
 
   const toneFieldRef = useRef(null);
 
-  const [refImage, setRefImage] = useState(null);
+  // Uploaded photos / logos: [{ id, uri, fileSize }]. Qwen3-VL decides what
+  // each one is and where it goes; results are cached per image so
+  // regenerating doesn't re-analyse them.
+  const [images, setImages] = useState([]);
+  const [imageKinds, setImageKinds] = useState({});
+  const analysisCache = useRef(new Map());
   const [imageError, setImageError] = useState('');
 
   const [autoApprove, setAutoApprove] = useState(false);
@@ -254,6 +297,29 @@ export default function CreatePostScreen() {
 
   const [captionOverride, setCaptionOverride] = useState(null);
 
+  /*
+   * Result of composePost(): { postType, caption, imagePrompt, fields,
+   * slots, slotImages }. generationRun lets a closed modal ignore a run
+   * that finishes later.
+   */
+  const [aiResult, setAiResult] = useState(null);
+
+  // The post type Qwen3 picked, and whether it has a designed template
+  // (otherwise it's shown as a normal image post).
+  const postType = aiResult?.postType || null;
+  const template = postType ? getTemplate(postType, postTypes) : null;
+  const templateType = template ? postType : null;
+  const isPoster = !!template;
+
+  // The facts a template prints (from Qwen3, editable in Details), and a
+  // ref to the template canvas for PNG export.
+  const [templateFields, setTemplateFields] = useState({});
+  const [downloading, setDownloading] = useState(false);
+  const templateRef = useRef(null);
+
+  const [generationStep, setGenerationStep] = useState('planning');
+  const generationRun = useRef(0);
+
   const [imgBrightness, setImgBrightness] = useState(100);
   const [imgContrast, setImgContrast] = useState(100);
   const [imgSaturation, setImgSaturation] = useState(100);
@@ -275,6 +341,14 @@ export default function CreatePostScreen() {
   const activeAspect =
     ASPECT_OPTIONS.find((a) => a.key === cropAspect) ||
     ASPECT_OPTIONS[0];
+
+  // A post drawn in one of the account's designs has that design's poster
+  // shape; keep it unless the user picks another crop.
+  const previewAspect =
+    cropAspect === 'original' && aiResult?.imageAspect
+      ? aiResult.imageAspect
+      : activeAspect.ratio;
+  const isDesigned = !!aiResult?.imageAspect;
 
   const imageFilterStyle = {
     filter: `brightness(${imgBrightness}%) contrast(${imgContrast}%) saturate(${imgSaturation}%)`,
@@ -303,7 +377,13 @@ export default function CreatePostScreen() {
     prompt.trim().endsWith('.') ? '' : '.'
   } ✨ Shot and written in a ${effectiveTone.toLowerCase()} voice, ready for ${platform}.`;
 
-  const generatedCaption = captionOverride ?? baseCaption;
+  const generatedCaption =
+    captionOverride ?? aiResult?.caption ?? baseCaption;
+
+  // A standard post's picture: the uploaded photo Qwen3 chose, cropped, or
+  // one painted by Qwen-Image.
+  const postImageUri = aiResult?.slotImages?.postImage || null;
+  const postImageIsUpload = aiResult?.slots?.postImage != null;
 
   /* -----------------------------------------------------
      SUGGESTIONS
@@ -355,8 +435,22 @@ export default function CreatePostScreen() {
      IMAGE PICKER
   ----------------------------------------------------- */
 
-  const pickImage = async () => {
-    setImageError('');
+  const pickImage = ({ replace = false } = {}) => {
+    if (!replace && images.length >= MAX_IMAGES) {
+      setImageError(`You can attach up to ${MAX_IMAGES} images.`);
+      return Promise.resolve();
+    }
+    const addPicked = (picked) =>
+      setImages((prev) => [
+        ...(replace ? [] : prev),
+        { id: `${Date.now()}`, ...picked },
+      ]);
+
+    return pickPhoto(MAX_IMAGE_BYTES, addPicked, setImageError);
+  };
+
+  const pickPhoto = async (maxBytes, setPicked, setError) => {
+    setError('');
 
     if (ImagePicker.requestMediaLibraryPermissionsAsync) {
       const perm =
@@ -367,7 +461,7 @@ export default function CreatePostScreen() {
         perm.granted === false &&
         perm.canAskAgain === false
       ) {
-        setImageError(
+        setError(
           'Photo library access is denied. Enable it in your device settings.'
         );
         return;
@@ -379,6 +473,10 @@ export default function CreatePostScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: false,
+        // Qwen3-VL needs the image data, and on web the picker's blob: URI
+        // is revoked soon after picking (which breaks PNG export) — so
+        // always keep a data: URI.
+        base64: true,
       });
 
     if (result.canceled) return;
@@ -388,24 +486,30 @@ export default function CreatePostScreen() {
 
     if (
       typeof size === 'number' &&
-      size > MAX_IMAGE_BYTES
+      size > maxBytes
     ) {
-      setImageError(
+      setError(
         `That image is ${(size / 1024).toFixed(
           0
-        )} KB — max allowed is 150 KB. Please choose a smaller file.`
+        )} KB — max allowed is ${
+          maxBytes >= 1024 * 1024
+            ? `${maxBytes / (1024 * 1024)} MB`
+            : `${maxBytes / 1024} KB`
+        }. Please choose a smaller file.`
       );
       return;
     }
 
-    setRefImage({
-      uri: asset.uri,
+    setPicked({
+      uri: asset.base64
+        ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+        : asset.uri,
       fileSize: size,
     });
   };
 
-  const removeImage = () => {
-    setRefImage(null);
+  const removeImage = (id) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
     setImageError('');
   };
 
@@ -434,18 +538,67 @@ export default function CreatePostScreen() {
      GENERATE
   ----------------------------------------------------- */
 
+  const runGeneration = async () => {
+    const run = ++generationRun.current;
+
+    setModerating(false);
+    setGenerationStep('planning');
+    setModalStage('generating');
+
+    try {
+      const result = await composePost({
+        prompt: prompt.trim(),
+        tone: effectiveTone,
+        platform,
+        images,
+        analysisCache: analysisCache.current,
+        postTypes,
+        brandKit,
+        onStep: (step) => {
+          if (run === generationRun.current) setGenerationStep(step);
+        },
+      });
+
+      setImageKinds((prev) => {
+        const next = { ...prev };
+        images.forEach((img) => {
+          next[img.id] = analysisCache.current.get(img.id)?.kind;
+        });
+        return next;
+      });
+
+      if (run !== generationRun.current) return;
+
+      setAiResult(result);
+      setTemplateFields(result.fields);
+      setCaptionOverride(null);
+      resetImageAdjustments();
+      setModalStage('preview');
+
+      // Anything a template needs that wasn't in the prompt has to be typed in.
+      const missing = postTypes[result.postType].requiredFields.filter(
+        (f) => !result.fields[f]
+      );
+      if (getTemplate(result.postType, postTypes) && missing.length) {
+        setModerating(true);
+        setModerateTab('details');
+      }
+    } catch (error) {
+      if (run !== generationRun.current) return;
+
+      setModalStage(null);
+      showAlert(
+        'Generation failed',
+        error?.message || 'Something went wrong while generating your post.'
+      );
+    }
+  };
+
   const handleGenerate = () => {
     if (!prompt.trim()) return;
 
-    setCaptionOverride(null);
-    resetImageAdjustments();
     setModerateTab('caption');
-
-    setModalStage('generating');
-
-    setTimeout(() => {
-      setModalStage('preview');
-    }, 1500);
+    runGeneration();
   };
 
   /* -----------------------------------------------------
@@ -453,14 +606,7 @@ export default function CreatePostScreen() {
   ----------------------------------------------------- */
 
   const handleRegenerate = () => {
-    setModerating(false);
-    setModalStage('generating');
-
-    setTimeout(() => {
-      setCaptionOverride(null);
-      resetImageAdjustments();
-      setModalStage('preview');
-    }, 1300);
+    runGeneration();
   };
 
   /* -----------------------------------------------------
@@ -478,7 +624,7 @@ export default function CreatePostScreen() {
   ----------------------------------------------------- */
 
   const handleUploadDifferentPhoto = async () => {
-    await pickImage();
+    await pickImage({ replace: true });
     resetImageAdjustments();
   };
 
@@ -503,7 +649,111 @@ export default function CreatePostScreen() {
     setModerating(false);
   };
 
+  /* -----------------------------------------------------
+     POSTER DOWNLOAD (web)
+  ----------------------------------------------------- */
+
+  const handleDownloadPoster = async () => {
+    if (!templateRef.current || downloading) return;
+
+    // Never export a template that still shows a placeholder like "Student name".
+    const missingPhotos = postTypes[templateType].requiredImages.filter(
+      (slot) => !aiResult.slotImages[slot]
+    );
+    if (missingPhotos.length) {
+      showAlert(
+        'Add a photo',
+        'This design needs a photo of the person. Attach one under "Photos & logos" and generate again.'
+      );
+      return;
+    }
+
+    const missing = postTypes[templateType].requiredFields.filter(
+      (f) => !(templateFields[f] || '').trim()
+    );
+    if (missing.length) {
+      setModerating(true);
+      setModerateTab('details');
+      showAlert(
+        'Add the missing details',
+        `Fill in ${missing
+          .map((f) => fieldLabel(f).toLowerCase())
+          .join(' and ')} in the Details panel before downloading.`
+      );
+      return;
+    }
+
+    try {
+      setDownloading(true);
+
+      const { toPng } = await import('html-to-image');
+      // Export at 1080 px wide — Instagram's recommended size.
+      const dataUrl = await toPng(templateRef.current, {
+        pixelRatio: 1080 / template.width,
+      });
+
+      // Name the file after the person if the design has a name field
+      // (studentName, studentsFullName1…), else its first filled-in detail.
+      const nameKey = Object.keys(templateFields).find(
+        (k) => /name/i.test(k) && !/company|organi[sz]ation|event/i.test(k) && templateFields[k]
+      );
+      const slug = (templateFields[nameKey] || Object.values(templateFields).find(Boolean) || 'post')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `${slug || 'post'}-poster.png`;
+      link.click();
+    } catch (error) {
+      showAlert(
+        'Download failed',
+        error?.message || 'Could not save the poster as an image.'
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // A post drawn in one of the account's designs is a finished image.
+  const handleDownloadImage = () => {
+    if (!postImageUri) return;
+    const name = (aiResult?.fields?.personName || aiResult?.fields?.headline || 'post')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const link = document.createElement('a');
+    link.href = postImageUri;
+    link.download = `${name || 'post'}.png`;
+    link.click();
+  };
+
+  const renderPoster = (style) => (
+    <ScaledTemplate
+      template={template}
+      templateRef={templateRef}
+      style={style}
+      fields={templateFields}
+      images={aiResult.slotImages}
+      brandKit={brandKit}
+    />
+  );
+
+  // Built-in fields have friendly labels; reference fields use what
+  // Qwen3-VL / the user called that part of the design.
+  const fieldLabel = (key) =>
+    FIELD_INPUTS[key]?.label ||
+    postTypes[templateType]?.fieldLabels?.[key] ||
+    key;
+
+  const updateTemplateField = (key, value) => {
+    setTemplateFields((prev) => ({ ...prev, [key]: value }));
+  };
+
   const closeModal = () => {
+    // Drop any run still in flight so it can't reopen the modal.
+    generationRun.current += 1;
     setModalStage(null);
     setModerating(false);
   };
@@ -625,40 +875,44 @@ export default function CreatePostScreen() {
 
               {/* Image */}
 
-              <View
-                style={[
-                  styles.reviewImage,
-                  {
-                    aspectRatio: activeAspect.ratio,
-                  },
-                ]}
-              >
-                {refImage ? (
-                  <Image
-                    source={{ uri: refImage.uri }}
-                    style={[
-                      styles.reviewImageFull,
-                      imageFilterStyle,
-                    ]}
-                  />
-                ) : (
-                  <View style={styles.placeholderArtwork}>
-                    <Text style={styles.placeholderEmoji}>
-                      🏺
-                    </Text>
+              {isPoster ? (
+                renderPoster()
+              ) : (
+                <View
+                  style={[
+                    styles.reviewImage,
+                    {
+                      aspectRatio: previewAspect,
+                    },
+                  ]}
+                >
+                  {postImageUri ? (
+                    <Image
+                      source={{ uri: postImageUri }}
+                      style={[
+                        styles.reviewImageFull,
+                        imageFilterStyle,
+                      ]}
+                    />
+                  ) : (
+                    <View style={styles.placeholderArtwork}>
+                      <Text style={styles.placeholderEmoji}>
+                        🏺
+                      </Text>
 
-                    <Text style={styles.placeholderTitle}>
-                      Autumn Ceramics
-                    </Text>
+                      <Text style={styles.placeholderTitle}>
+                        Autumn Ceramics
+                      </Text>
 
-                    <Text
-                      style={styles.placeholderSubtitle}
-                    >
-                      Handmade • Small batch
-                    </Text>
-                  </View>
+                      <Text
+                        style={styles.placeholderSubtitle}
+                      >
+                        Handmade • Small batch
+                      </Text>
+                    </View>
                 )}
               </View>
+              )}
 
               {/* Post body */}
 
@@ -786,7 +1040,13 @@ export default function CreatePostScreen() {
                   </Text>
 
                   <Text style={styles.detailValue}>
-                    {refImage ? 'Attached' : 'Generated'}
+                    {isPoster
+                      ? postTypes[templateType].label
+                      : postImageIsUpload
+                        ? 'Your photo'
+                        : postImageUri
+                          ? 'Generated'
+                          : 'None yet'}
                   </Text>
                 </View>
 
@@ -946,7 +1206,9 @@ export default function CreatePostScreen() {
             onChangeText={setPrompt}
             multiline
             style={styles.promptInput}
-            placeholder="Tell us what you want to post about…"
+            placeholder={
+              'Tell us what you want to post about — e.g. "Congratulate Pragya Shrivastav (CSE, 2027 batch) on her placement at AAJ Supply Chain, 40 LPA"'
+            }
             placeholderTextColor={GRAY_TEXT}
           />
 
@@ -989,18 +1251,19 @@ export default function CreatePostScreen() {
               )}
             </View>
 
-            {/* Photo */}
+            {/* Photos & logos */}
 
             <View style={styles.photoCol}>
               <Text style={styles.fieldLabel}>
-                Reference photo (optional, max 150 KB)
+                Photos &amp; logos (optional, up to {MAX_IMAGES})
               </Text>
 
-              {refImage ? (
-                <View style={styles.imagePreviewRow}>
+              {images.map((img) => (
+                <View key={img.id} style={[styles.imagePreviewRow, styles.imageListRow]}>
                   <Image
-                    source={{ uri: refImage.uri }}
+                    source={{ uri: img.uri }}
                     style={styles.imagePreviewThumb}
+                    resizeMode="cover"
                   />
 
                   <View style={{ flex: 1 }}>
@@ -1008,17 +1271,16 @@ export default function CreatePostScreen() {
                       style={styles.imagePreviewName}
                       numberOfLines={1}
                     >
-                      Image attached
-                      {typeof refImage.fileSize ===
-                      'number'
-                        ? ` · ${(
-                            refImage.fileSize / 1024
-                          ).toFixed(0)} KB`
+                      {imageKinds[img.id]
+                        ? IMAGE_KIND_LABELS[imageKinds[img.id]]
+                        : 'Image attached'}
+                      {typeof img.fileSize === 'number'
+                        ? ` · ${(img.fileSize / 1024).toFixed(0)} KB`
                         : ''}
                     </Text>
 
                     <TouchableOpacity
-                      onPress={removeImage}
+                      onPress={() => removeImage(img.id)}
                     >
                       <Text
                         style={
@@ -1030,18 +1292,20 @@ export default function CreatePostScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-              ) : (
+              ))}
+
+              {images.length < MAX_IMAGES && (
                 <TouchableOpacity
-                  style={styles.dropZone}
+                  style={[styles.dropZone, images.length > 0 && styles.dropZoneCompact]}
                   activeOpacity={0.8}
-                  onPress={pickImage}
+                  onPress={() => pickImage()}
                 >
                   <Text style={styles.dropZoneIcon}>
                     🖼️
                   </Text>
 
                   <Text style={styles.dropZoneText}>
-                    Drop image or browse
+                    {images.length ? 'Add another image' : 'Drop image or browse'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1051,6 +1315,12 @@ export default function CreatePostScreen() {
                   {imageError}
                 </Text>
               ) : null}
+
+              <Text style={styles.posterHint}>
+                Social Lift works out what each image is (a student photo, a
+                company logo…) and places and crops it to fit the post.
+                Posters use your Brand Kit for the header and footer.
+              </Text>
             </View>
           </View>
 
@@ -1248,9 +1518,26 @@ export default function CreatePostScreen() {
               <Text
                 style={styles.modalGeneratingBody}
               >
-                Writing a caption in your{' '}
-                {effectiveTone.toLowerCase()} voice for{' '}
-                {platform}.
+                {generationStep === 'analyzing' ? (
+                  'Looking at your images with Qwen3-VL…'
+                ) : generationStep === 'style' ? (
+                  "Reading your reference's design notes…"
+                ) : generationStep === 'checking' ? (
+                  'Checking the heading and name are spelt right…'
+                ) : generationStep === 'photo' ? (
+                  'Placing the photo (SAM 3 cuts the person out where needed)…'
+                ) : generationStep === 'image' ? (
+                  Object.keys(postTypes).some(isReferenceType)
+                    ? 'Drawing your post from scratch in your design style with Qwen-Image — a minute or two.'
+                    : 'Painting a picture for your post with Qwen-Image — this can take a minute or two.'
+                ) : (
+                  <>
+                    Working out what kind of post this is and writing
+                    the caption in your{' '}
+                    {effectiveTone.toLowerCase()} voice for{' '}
+                    {platform}.
+                  </>
+                )}
               </Text>
             </View>
           )}
@@ -1270,34 +1557,38 @@ export default function CreatePostScreen() {
                 Post preview
               </Text>
 
-              <View
-                style={[
-                  styles.modalPreviewImage,
-                  {
-                    aspectRatio:
-                      activeAspect.ratio,
-                  },
-                ]}
-              >
-                {refImage ? (
-                  <Image
-                    source={{ uri: refImage.uri }}
-                    style={[
-                      styles.modalPreviewImageFull,
-                      imageFilterStyle,
-                    ]}
-                  />
-                ) : (
-                  <Text
-                    style={[
-                      styles.modalPreviewImageIcon,
-                      imageFilterStyle,
-                    ]}
-                  >
-                    🏺
-                  </Text>
-                )}
-              </View>
+              {isPoster ? (
+                renderPoster(styles.modalPoster)
+              ) : (
+                <View
+                  style={[
+                    styles.modalPreviewImage,
+                    {
+                      aspectRatio:
+                        previewAspect,
+                    },
+                  ]}
+                >
+                  {postImageUri ? (
+                    <Image
+                      source={{ uri: postImageUri }}
+                      style={[
+                        styles.modalPreviewImageFull,
+                        imageFilterStyle,
+                      ]}
+                    />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.modalPreviewImageIcon,
+                        imageFilterStyle,
+                      ]}
+                    >
+                      🏺
+                    </Text>
+                  )}
+                </View>
+              )}
 
               {/* Moderation */}
 
@@ -1333,22 +1624,24 @@ export default function CreatePostScreen() {
                     <TouchableOpacity
                       style={[
                         styles.moderateTabPill,
-                        moderateTab === 'image' &&
+                        moderateTab !== 'caption' &&
                           styles.moderateTabPillActive,
                       ]}
                       activeOpacity={0.85}
                       onPress={() =>
-                        setModerateTab('image')
+                        setModerateTab(
+                          isPoster ? 'details' : 'image'
+                        )
                       }
                     >
                       <Text
                         style={[
                           styles.moderateTabText,
-                          moderateTab === 'image' &&
+                          moderateTab !== 'caption' &&
                             styles.moderateTabTextActive,
                         ]}
                       >
-                        Image
+                        {isPoster ? 'Details' : 'Image'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1387,6 +1680,46 @@ export default function CreatePostScreen() {
                         </Text>
                       </TouchableOpacity>
                     </>
+                  ) : isPoster ? (
+                    <View style={styles.posterDetailsPanel}>
+                      {Object.keys(postTypes[templateType].fields).map((key) => (
+                        <View key={key}>
+                          <Text style={styles.posterDetailLabel}>
+                            {fieldLabel(key)}
+                          </Text>
+
+                          <TextInput
+                            value={templateFields[key] || ''}
+                            onChangeText={(v) =>
+                              updateTemplateField(key, v)
+                            }
+                            placeholder={FIELD_INPUTS[key]?.placeholder}
+                            placeholderTextColor={
+                              DARK_TEXT_MUTED
+                            }
+                            style={styles.posterDetailInput}
+                          />
+                        </View>
+                      ))}
+
+                      <TouchableOpacity
+                        style={
+                          styles.modalModerateSaveBtn
+                        }
+                        activeOpacity={0.88}
+                        onPress={() =>
+                          setModerating(false)
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.modalModerateSaveText
+                          }
+                        >
+                          Done
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : (
                     <View
                       style={styles.imageAdjustPanel}
@@ -1554,6 +1887,28 @@ export default function CreatePostScreen() {
                   </Text>
                 </View>
               </View>
+
+              {isDesigned && aiResult.misspelt?.length > 0 && (
+                <Text style={styles.spellingNote}>
+                  Check the spelling of {aiResult.misspelt.map((t) => `"${t}"`).join(' and ')} in the
+                  design — it couldn't be confirmed. Press Regenerate if it's wrong.
+                </Text>
+              )}
+
+              {(isPoster || isDesigned) && Platform.OS === 'web' && (
+                <TouchableOpacity
+                  style={styles.modalDownloadBtn}
+                  onPress={isPoster ? handleDownloadPoster : handleDownloadImage}
+                  activeOpacity={0.88}
+                  disabled={downloading}
+                >
+                  <Text style={styles.modalDownloadBtnText}>
+                    {downloading
+                      ? 'Preparing PNG…'
+                      : '⬇  Download poster (PNG)'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.modalPublishBtn}
@@ -2667,6 +3022,78 @@ const styles = StyleSheet.create({
     color: DARK_TEXT_MUTED,
     fontSize: 13,
     textAlign: 'center',
+  },
+
+  modalPoster: {
+    borderRadius: 14,
+    marginBottom: 18,
+    overflow: 'hidden',
+  },
+
+
+
+
+
+
+
+  spellingNote: {
+    color: DARK_TEXT_MUTED,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+
+
+  modalDownloadBtn: {
+    borderWidth: 1,
+    borderColor: PURPLE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  modalDownloadBtnText: {
+    color: DARK_TEXT_PRIMARY,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  posterDetailsPanel: {
+    gap: 10,
+  },
+
+  posterDetailLabel: {
+    color: DARK_TEXT_MUTED,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+
+  posterDetailInput: {
+    color: DARK_TEXT_PRIMARY,
+    fontSize: 14,
+    backgroundColor: DARK_PANEL,
+    borderWidth: 1,
+    borderColor: DARK_BORDER,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+
+  posterHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: GRAY_TEXT,
+    marginTop: 8,
+  },
+
+  imageListRow: {
+    marginBottom: 8,
+  },
+
+  dropZoneCompact: {
+    height: 64,
   },
 
   modalPreviewScroll: {
