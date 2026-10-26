@@ -1,0 +1,41 @@
+{
+  "mode": "full",
+  "total_images": 902,
+  "per_category": {
+    "university": 313,
+    "business": 325,
+    "organization": 264
+  },
+  "per_source_dataset": {
+    "crello": 834,
+    "pitt_ads": 68
+  },
+  "per_category_subtype": {
+    "business": {
+      "sale_post": 141,
+      "offer_promo": 20,
+      "business_general_post": 146,
+      "brand_announcement": 11,
+      "product_launch": 7
+    },
+    "organization": {
+      "csr_post": 110,
+      "corporate_announcement": 65,
+      "organization_general_post": 84,
+      "award_post": 5
+    },
+    "university": {
+      "placement_post": 117,
+      "university_general_post": 146,
+      "event_poster": 28,
+      "admission_announcement": 3,
+      "achievement_post": 19
+    }
+  },
+  "quality_score": {
+    "mean": 0.5966,
+    "min": 0.4421,
+    "max": 0.6954,
+    "stdev": 0.0405
+  }
+}
