@@ -1,0 +1,14 @@
+# Vision (Qwen3-VL) and text (Qwen3) fine-tuning, and export.
+# Install PyTorch FIRST with the CUDA build for your GPU (RTX 50-series needs CUDA 12.8+):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+transformers>=4.57      # first version with Qwen3-VL
+peft>=0.17
+accelerate>=1.10
+bitsandbytes>=0.46      # 4-bit QLoRA; has Windows wheels
+pillow
+pyyaml
+# llama.cpp's converter (text model export) has its own requirements:
+#   pip install -r <llama.cpp>/requirements/requirements-convert_hf_to_gguf.txt
+#
+# The Qwen-Image LoRA is trained with ai-toolkit in its own environment
+# (see README.md); it is not installed from here.

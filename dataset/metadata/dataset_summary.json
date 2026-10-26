@@ -1,14 +1,15 @@
 {
   "mode": "full",
-  "total_images": 902,
+  "total_images": 917,
   "per_category": {
-    "university": 313,
+    "university": 328,
     "business": 325,
     "organization": 264
   },
   "per_source_dataset": {
     "crello": 834,
-    "pitt_ads": 68
+    "pitt_ads": 68,
+    "juet": 15
   },
   "per_category_subtype": {
     "business": {
@@ -25,14 +26,15 @@
       "award_post": 5
     },
     "university": {
-      "placement_post": 117,
-      "university_general_post": 146,
-      "event_poster": 28,
-      "admission_announcement": 3,
-      "achievement_post": 19
+      "placement_post": 121,
+      "university_general_post": 151,
+      "event_poster": 30,
+      "admission_announcement": 5,
+      "achievement_post": 21
     }
   },
   "quality_score": {
+    "note": "computed over the 902 crello/pitt_ads images; the 15 juet images are hand-curated and carry 1.0",
     "mean": 0.5966,
     "min": 0.4421,
     "max": 0.6954,

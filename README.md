@@ -76,6 +76,25 @@ A post takes about 3–5 minutes on an RTX 5050 (8 GB) laptop when it is plugged
 
 AI generation currently runs on the **web** build, because it uses the browser canvas.
 
+## Dataset and fine-tuning
+
+[`dataset/`](dataset) holds 917 captioned social-media post images for fine-tuning:
+- 902 come from Crello and Pitt Ads, labelled university, business or organisation (see
+  [dataset/dataset_report.md](dataset/dataset_report.md)).
+- 15 are real JUET posts (`image_0903`–`image_0917`): placement, admissions, festival, event
+  and notice posts. Their captions start with the trigger phrase `juet_style poster`.
+
+[`training/`](training) is the Python code that fine-tunes the app's models on it, with
+step-by-step instructions in [training/README.md](training/README.md):
+- **Qwen-Image 2512:** a style LoRA trained with ai-toolkit. It needs a 24 GB+ GPU and draws
+  JUET-style posts when a prompt starts with `juet_style poster`.
+- **Qwen3-VL 4B:** QLoRA, so Brand Kit design notes match the dataset (runs on an 8 GB laptop GPU).
+- **Qwen3 8B:** QLoRA, turning a short brief into an image prompt the LoRA understands.
+- **Export scripts:** they bring the results back into ComfyUI and Ollama.
+
+The dataset and trained models are for private, non-commercial use. Some images show real
+students, and part of the source data is licensed for non-commercial use only.
+
 ## Project layout
 
 ```
@@ -89,6 +108,8 @@ src/context/             Auth, BrandKit, OwnerData, Theme
 src/utils/               canvas compositing, cropping, colour palette
 screens/                 app screens (dashboard/, owner/, legal/)
 docs/LOCAL_AI_SETUP.md   local AI setup and troubleshooting
+dataset/                 917 captioned post images + metadata (fine-tuning data)
+training/                Python fine-tuning code (Qwen-Image LoRA, Qwen3-VL, Qwen3)
 ```
 
 ## Still to do

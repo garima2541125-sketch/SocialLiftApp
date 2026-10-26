@@ -1,5 +1,16 @@
 # Dataset Report (full run)
 
+> **Update — JUET images added.** `image_0903`–`image_0917` are 15 real JUET posts
+> (screenshots of the university's own social media posts), hand-captioned. Their
+> captions start with the trigger phrase `juet_style poster` and quote the exact text on
+> each poster. `source_dataset` is `juet`, all in the `university` category:
+> placement_post 4, admission_announcement 2, achievement_post 2, event_poster 2,
+> university_general_post 5 (festival, national-day and notice posts). Their
+> `has_*` flags and `dominant_colors` were set by hand, and `quality_score` is 1.0
+> (not scored). Total is now **917**. Images 0906, 0907, 0908, 0910 and 0912 show real
+> students' faces and names. They are for private training only: don't publish them or a
+> model trained on them.
+
 Total images: **902** (target was 325 per category x 3 categories = 975).
 
 ## Counts per category

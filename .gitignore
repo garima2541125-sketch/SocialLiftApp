@@ -48,3 +48,9 @@ example
 
 # .env.example is a committed template, not a secret
 !.env.example
+
+# training outputs (training/README.md)
+training/build/
+training/output/
+.venv-train/
+__pycache__/

@@ -1,0 +1,36 @@
+"""Hand-written design notes for the 15 JUET posts (image_0903-0917): the
+fields the dataset's metadata doesn't have. Used as exact training targets
+for the vision model."""
+
+JUET_NOTES = {
+    'image_0903': dict(category='Ranking announcement', headingStyle='bold navy and orange uppercase sans-serif',
+                       photoStyle='none', photoSide='center'),
+    'image_0904': dict(category='Admissions open', headingStyle='bold white sans-serif on a royal blue banner',
+                       photoStyle='rect', photoSide='center'),
+    'image_0905': dict(category='Admissions open', headingStyle='bold white sans-serif on a royal blue banner',
+                       photoStyle='none', photoSide='center'),
+    'image_0906': dict(category='Placement congratulations', headingStyle='large purple brush-script',
+                       photoStyle='circle', photoSide='right'),
+    'image_0907': dict(category='Placement congratulations', headingStyle='large purple brush-script',
+                       photoStyle='circle', photoSide='right'),
+    'image_0908': dict(category='Placement congratulations', headingStyle='large purple brush-script',
+                       photoStyle='circle', photoSide='right'),
+    'image_0909': dict(category='Festival greeting', headingStyle='large maroon script',
+                       photoStyle='none', photoSide='left'),
+    'image_0910': dict(category='Placement congratulations', headingStyle='large purple brush-script',
+                       photoStyle='circle', photoSide='right'),
+    'image_0911': dict(category='National day greeting', headingStyle='large navy and green serif',
+                       photoStyle='none', photoSide='center'),
+    'image_0912': dict(category='Student achievement', headingStyle='navy script with a yellow brush banner',
+                       photoStyle='cutout', photoSide='left'),
+    'image_0913': dict(category='Notice', headingStyle='huge bold white sans-serif on royal blue',
+                       photoStyle='none', photoSide='right'),
+    'image_0914': dict(category='Event announcement', headingStyle='large bold orange sans-serif',
+                       photoStyle='rect', photoSide='right'),
+    'image_0915': dict(category='Occasion greeting', headingStyle='large navy script',
+                       photoStyle='none', photoSide='left'),
+    'image_0916': dict(category='Event announcement', headingStyle='large bold red uppercase sans-serif',
+                       photoStyle='none', photoSide='right'),
+    'image_0917': dict(category='Festival greeting', headingStyle='large maroon script',
+                       photoStyle='none', photoSide='left'),
+}
