@@ -46,8 +46,9 @@ function mapAuthError(error) {
     case 'auth/user-not-found':
       return 'No account found with this email.';
     case 'auth/wrong-password':
-    case 'auth/invalid-credential':
       return 'Incorrect password.';
+    case 'auth/invalid-credential':
+      return 'Google login rejected: ' + (error?.message || error?.code);
     default:
       return error?.message || 'Something went wrong.';
   }
