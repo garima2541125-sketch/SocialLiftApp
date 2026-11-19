@@ -48,9 +48,13 @@ function mapAuthError(error) {
     case 'auth/wrong-password':
       return 'Incorrect password.';
     case 'auth/invalid-credential':
-      return 'Google login rejected: ' + (error?.message || error?.code);
+      // Firebase uses this code both for rejected Google ID tokens and for
+      // bad email/password combos, so surface the real code and message.
+      return `Sign-in failed (${error.code}): ${error?.message || 'no details'}`;
     default:
-      return error?.message || 'Something went wrong.';
+      return error?.code
+        ? `${error?.message || 'Something went wrong.'} (${error.code})`
+        : error?.message || 'Something went wrong.';
   }
 }
 
