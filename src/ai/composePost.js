@@ -81,6 +81,7 @@ export async function composePost({
       analyses,
       imageAspect: designed.aspect,
       misspelt: designed.missing,
+      photoCrowded: designed.photoCrowded,
     };
   }
 

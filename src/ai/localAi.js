@@ -1,4 +1,4 @@
-import { POST_TYPES, DEFAULT_POST_TYPE, isReferenceType } from './postTypes';
+import { POST_TYPES, DEFAULT_POST_TYPE, headingOf, isReferenceType } from './postTypes';
 import { aiServer } from './aiServer';
 
 // Free, fully local post generation:
@@ -151,8 +151,8 @@ export async function describeReferenceStyle(dataUri) {
     model: VISION_MODEL,
     system:
       'You study a social media post design so NEW posts can be drawn from scratch in exactly the same visual style. ' +
-      'Reply with JSON only, shaped as {"category": string, "style": string, "headingStyle": string, "palette": [string], ' +
-      '"photoStyle": string, "photoSide": string}. ' +
+      'Reply with JSON only, shaped as {"category": string, "style": string, "headingText": string, "headingStyle": string, ' +
+      '"palette": [string], "photoStyle": string, "photoSide": string}. ' +
       '"category" is a short name for this kind of post, e.g. "Placement congratulations". ' +
       '"style" is a detailed paragraph an image generator can follow to draw a new design in the same style: ' +
       'background colours and gradients, decorative shapes ' +
@@ -160,6 +160,8 @@ export async function describeReferenceStyle(dataUri) {
       'how text is arranged (centred, left-aligned, in pills or banners), spacing and overall feel. ' +
       'Describe the design only — do not mention any names, words, numbers, logos or contact details shown on ' +
       'it, and do not describe its header or footer (the app adds those itself). ' +
+      '"headingText" is the main heading exactly as written on the post, e.g. "Congratulations" (the only field ' +
+      'that may contain the post\'s own words). ' +
       '"headingStyle" describes the main heading lettering, e.g. "large purple brush-script" or "bold navy serif". ' +
       '"palette" is the 3-6 main colours as hex codes. ' +
       '"photoStyle" is how the main photo of a person is shown: "circle" (in a round frame), "cutout" (person cut out ' +
@@ -173,6 +175,7 @@ export async function describeReferenceStyle(dataUri) {
   return {
     category: String(parsed.category || '').trim(),
     style: String(parsed.style || '').trim(),
+    headingText: String(parsed.headingText || '').trim(),
     headingStyle: String(parsed.headingStyle || '').trim(),
     palette: (Array.isArray(parsed.palette) ? parsed.palette : [])
       .map((c) => String(c).trim())
@@ -373,6 +376,23 @@ export async function planPost({ prompt, tone, platform, analyses = [], postType
     }
   });
 
+  if (type.designReference) {
+    // The design's own heading when the model left it out.
+    if (!fields.headline) fields.headline = headingOf(type.designReference);
+    // Each line of the design says something new: no subheadline that
+    // repeats the name, no detail already on the name or role lines.
+    const flat = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (fields.personName && flat(fields.subheadline).includes(flat(fields.personName))) fields.subheadline = '';
+    if (fields.details) {
+      const shown = flat(`${fields.personName} ${fields.personRole} ${fields.subheadline}`);
+      fields.details = fields.details
+        .split('·')
+        .map((part) => part.trim())
+        .filter((part) => part && !shown.includes(flat(part)))
+        .join(' · ');
+    }
+  }
+
   return {
     postType,
     caption: dropInventedNumbers(String(parsed.caption)),
@@ -546,9 +566,7 @@ export async function segmentImage({ uri, prompt, threshold = 0.4 }) {
   }
 }
 
-// Reads all the text in an image (Qwen3-VL), to check that newly written
-// text says what it should.
-export async function readImageText(uri) {
+async function toBase64(uri) {
   const blob = await (await fetch(uri)).blob();
   const dataUri = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -556,6 +574,42 @@ export async function readImageText(uri) {
     reader.onerror = () => reject(new Error('Could not read the redrawn image.'));
     reader.readAsDataURL(blob);
   });
+  return dataUri.slice(dataUri.indexOf(',') + 1);
+}
+
+// Where the text lines and any photos / photo frames are on a poster
+// (Qwen3-VL), as [x1, y1, x2, y2] boxes in 0-1 of the image, so a real photo
+// can be placed clear of the text. null if the model's answer can't be used.
+export async function locateTextAndPhotos(uri) {
+  const toBoxes = (list) =>
+    (Array.isArray(list) ? list : [])
+      .filter((b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite))
+      .map(([x1, y1, x2, y2]) => [x1, y1, x2, y2].map((v) => Math.min(1, Math.max(0, v / 1000))))
+      .filter(([x1, y1, x2, y2]) => x2 > x1 && y2 > y1);
+  try {
+    const parsed = await ollamaJson({
+      model: VISION_MODEL,
+      system:
+        'You locate things on a poster image. Reply with JSON only, shaped as ' +
+        '{"text": [[x1, y1, x2, y2], ...], "photos": [[x1, y1, x2, y2], ...]}. ' +
+        '"text" has one box for every line of text (headings, names, details, banners), tight around the letters. ' +
+        '"photos" has one box for every photo of a person or empty photo frame. ' +
+        'Coordinates are integers from 0 to 1000 relative to the image width and height.',
+      user: 'Locate all text lines and photos.',
+      images: [await toBase64(uri)],
+      options: { temperature: 0, seed: 7 },
+    });
+    const text = toBoxes(parsed.text);
+    return text.length ? { text, photos: toBoxes(parsed.photos) } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Reads all the text in an image (Qwen3-VL), to check that newly written
+// text says what it should.
+export async function readImageText(uri) {
+  const image = await toBase64(uri);
 
   // Plain text, not JSON: the vision model occasionally breaks JSON, and a
   // check that can't be read should count as "not verified", not crash.
@@ -566,7 +620,7 @@ export async function readImageText(uri) {
       model: VISION_MODEL,
       messages: [
         { role: 'system', content: 'Write out every piece of text visible in the image, exactly as written, and nothing else.' },
-        { role: 'user', content: 'Read all the text in this image.', images: [dataUri.slice(dataUri.indexOf(',') + 1)] },
+        { role: 'user', content: 'Read all the text in this image.', images: [image] },
       ],
       think: false,
       stream: false,

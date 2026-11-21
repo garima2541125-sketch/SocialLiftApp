@@ -66,6 +66,15 @@ export default function ReferenceEditor({ draft, onChange, onSave, onCancel, sav
             multiline
           />
 
+          <Text style={[styles.label, styles.gap]}>Main heading text</Text>
+          <TextInput
+            value={info.headingText || ''}
+            onChangeText={(headingText) => setInfo({ headingText })}
+            placeholder="e.g. Congratulations — used on new posts unless your prompt asks for other words"
+            placeholderTextColor={GRAY_TEXT}
+            style={styles.input}
+          />
+
           <Text style={[styles.label, styles.gap]}>Main heading lettering</Text>
           <TextInput
             value={info.headingStyle || ''}

@@ -53,30 +53,51 @@ export const DEFAULT_POST_TYPE = 'general';
 // writes for the post — the reference image is only studied, never reused.
 // See designedPost.js. Each reference is:
 //   { id, label, imageUri, width, height,
-//     styleInfo: { category, style, headingStyle, palette, photoStyle, photoSide } }
+//     styleInfo: { category, style, headingText, headingStyle, palette, photoStyle, photoSide } }
 
 export const isReferenceType = (key) => typeof key === 'string' && key.startsWith('ref:');
 
 // What any designed post can say. Wording of the creative fields can be
 // new, but numbers in them must be in the request; the person's name and
 // role must be in the request word for word.
+// Each field must add something new: the same fact never appears on two
+// lines of the design.
 const DESIGN_FIELDS = {
-  headline: 'the main heading, short and eye-catching, e.g. "Heartfelt Congratulations" or "Admissions Open"',
-  subheadline: 'one supporting line under the heading, at most 12 words',
+  headline: 'the main heading, short and eye-catching, e.g. "Admissions Open" or "Welcome Freshers"',
+  subheadline: 'one supporting line under the heading, at most 12 words, never repeating the name or any fact below',
   personName: 'the full name of the person the post is about, only if the request names one, else ""',
   personRole:
     'that person\'s achievement, new role, company or course, only as stated in the request, else ""',
-  details: 'up to 3 short key facts from the request (dates, eligibility, venue, batch…), separated by " · ", or ""',
+  details:
+    'up to 3 short key facts from the request (dates, eligibility, venue, batch…) that are NOT already in the ' +
+    'name or role, separated by " · ", or ""',
   callToAction: 'a short call to action or closing line, e.g. "Apply now" or "Your achievements inspire us all", or ""',
 };
 
+// The heading printed on the reference: saved with its design notes, or for
+// references saved before that, the first quoted words of a sentence about
+// the heading ("…script heading 'Congratulations' dominates the top").
+export function headingOf(ref) {
+  const info = ref?.styleInfo || {};
+  if (info.headingText) return info.headingText.trim();
+  const sentence = (info.style || '').split(/(?<=[.!?])\s+/).find((s) => /heading/i.test(s)) || '';
+  const quoted = sentence.match(/["“'‘]([^"“”'’]{2,60})["”'’]/);
+  return quoted ? quoted[1].trim() : '';
+}
+
 function designType(ref) {
+  const heading = headingOf(ref);
   return {
     label: ref.label,
     classify:
       `${ref.label} — and any other kind of post (admissions, events, greetings, achievements…) when none of ` +
       "this account's other designs fits better; drawn fresh in this account's own style",
-    fields: DESIGN_FIELDS,
+    fields: heading
+      ? {
+          ...DESIGN_FIELDS,
+          headline: `the main heading. This design's own heading is "${heading}": use exactly that, unless the request asks for different wording`,
+        }
+      : DESIGN_FIELDS,
     creativeFields: ['headline', 'subheadline', 'details', 'callToAction'],
     requiredFields: ['headline'],
     requiredImages: [],

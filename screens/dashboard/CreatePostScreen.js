@@ -1895,6 +1895,13 @@ export default function CreatePostScreen() {
                 </Text>
               )}
 
+              {isDesigned && aiResult.photoCrowded && (
+                <Text style={styles.spellingNote}>
+                  The design left little room for the photo, so it may sit close to some text. Press Regenerate
+                  for a new layout.
+                </Text>
+              )}
+
               {(isPoster || isDesigned) && Platform.OS === 'web' && (
                 <TouchableOpacity
                   style={styles.modalDownloadBtn}
