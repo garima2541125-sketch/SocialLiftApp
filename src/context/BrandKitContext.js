@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { brandKitSyncEnabled, loadRemoteBrandKit, saveRemoteBrandKit } from '../firebase/brandKitStore';
 
-// The Brand Kit is saved on this device (AsyncStorage — localStorage on web),
-// separately for each signed-in account, so it survives reloads and the
+// The Brand Kit is saved on this device (AsyncStorage — localStorage on web)
+// and, with Firebase, in the account's users/{uid} document (see
+// src/firebase/brandKitStore.js), separately for each signed-in account, so
+// it follows the account to other browsers, survives reloads and the
 // Create screen can use the logo, organisation details, contact info and
 // reference posts. Images are stored as data: URIs because web picker URIs
 // (blob:) die with the page.
@@ -49,25 +52,59 @@ export function BrandKitProvider({ children }) {
     let cancelled = false;
     setLoaded(false);
 
-    AsyncStorage.getItem(storageKeyFor(uid))
-      .then((raw) => {
-        if (!cancelled) setBrandKit(raw ? { ...EMPTY_BRAND_KIT, ...JSON.parse(raw) } : EMPTY_BRAND_KIT);
-      })
-      .catch((error) => console.log('Brand kit load error:', error))
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
-      });
+    // The account's online copy wins, so every browser shows the same kit.
+    // A kit that only exists in this browser (saved before syncing existed)
+    // is uploaded once.
+    (async () => {
+      let local = null;
+      try {
+        const raw = await AsyncStorage.getItem(storageKeyFor(uid));
+        local = raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        console.log('Brand kit load error:', error);
+      }
+
+      let remote = null;
+      try {
+        remote = await loadRemoteBrandKit(uid);
+        if (!remote && local && uid) await saveRemoteBrandKit(uid, local);
+      } catch (error) {
+        console.log('Brand kit sync error:', error?.message || error);
+      }
+
+      if (cancelled) return;
+      const kit = remote || local;
+      setBrandKit(kit ? { ...EMPTY_BRAND_KIT, ...kit } : EMPTY_BRAND_KIT);
+      if (remote) AsyncStorage.setItem(storageKeyFor(uid), JSON.stringify(remote)).catch(() => {});
+      setLoaded(true);
+    })();
 
     return () => {
       cancelled = true;
     };
   }, [uid, authLoading]);
 
-  // Throws if storage is full (web localStorage is ~5 MB per site) so the
-  // Brand Kit screen can tell the user instead of silently losing the save.
+  // Saves to this browser and to the account online. Throws if either fails
+  // (web localStorage is ~5 MB per site; the online copy is limited to 1 MB)
+  // so the Brand Kit screen can tell the user instead of losing the save.
   const saveBrandKit = async (next) => {
-    await AsyncStorage.setItem(storageKeyFor(uid), JSON.stringify(next));
-    setBrandKit(next);
+    let localError = null;
+    let remoteError = null;
+    try {
+      await AsyncStorage.setItem(storageKeyFor(uid), JSON.stringify(next));
+    } catch (error) {
+      localError = error;
+    }
+    try {
+      await saveRemoteBrandKit(uid, next);
+    } catch (error) {
+      remoteError = error;
+    }
+
+    const savedSomewhere = !localError || (brandKitSyncEnabled && uid && !remoteError);
+    if (savedSomewhere) setBrandKit(next);
+    if (remoteError) throw remoteError;
+    if (localError && !savedSomewhere) throw localError;
   };
 
   const value = useMemo(() => ({ brandKit, loaded, saveBrandKit }), [brandKit, loaded, uid]);

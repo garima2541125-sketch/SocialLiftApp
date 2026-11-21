@@ -5,6 +5,7 @@ import DashboardShell from './DashboardShell';
 import ReferenceEditor from './ReferenceEditor';
 import { useBrandKit } from '../../src/context/BrandKitContext';
 import { describeReferenceStyle } from '../../src/ai/localAi';
+import { BrandKitTooLargeError } from '../../src/firebase/brandKitStore';
 import { downscaleImage, dominantColors } from '../../src/utils/cropImage';
 
 const PURPLE = '#6C5CE7';
@@ -144,7 +145,11 @@ export default function BrandKitScreen() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
     } catch (error) {
-      setSaveError('Could not save — your images may be too large for this browser. Try smaller files.');
+      setSaveError(
+        error instanceof BrandKitTooLargeError
+          ? error.message
+          : 'Could not save — your images may be too large for this browser. Try smaller files.'
+      );
     }
   };
 
@@ -240,7 +245,11 @@ export default function BrandKitScreen() {
       await saveBrandKit({ ...brandKit, references: [...others, reference] });
       setRefDraft(null);
     } catch (error) {
-      setRefError('Could not save — this browser\'s storage may be full. Delete an older reference and try again.');
+      setRefError(
+        error instanceof BrandKitTooLargeError
+          ? error.message
+          : 'Could not save — this browser\'s storage may be full. Delete an older reference and try again.'
+      );
     } finally {
       setRefSaving(false);
     }

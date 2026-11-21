@@ -65,7 +65,8 @@ function mapAuthError(error) {
 async function loadProfile(firebaseUser) {
   const ref = doc(db, 'users', firebaseUser.uid);
   const snap = await getDoc(ref);
-  const profile = snap.exists() ? snap.data() : {};
+  // The Brand Kit copy (src/firebase/brandKitStore.js) is loaded separately.
+  const { brandKit, ...profile } = snap.exists() ? snap.data() : {};
 
   return {
     uid: firebaseUser.uid,
