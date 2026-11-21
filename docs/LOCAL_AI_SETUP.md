@@ -69,8 +69,12 @@ The code that calls them is in `src/ai/localAi.js`.
 
 3. Start ComfyUI, letting the Social Lift dev server talk to it:
    ```
-   venv\Scripts\python main.py --lowvram --listen 127.0.0.1 --enable-cors-header http://localhost:8081
+   venv\Scripts\python main.py --lowvram --fast-disk --disable-pinned-memory --listen 127.0.0.1 --enable-cors-header http://localhost:8081
    ```
+   On a laptop with 16 GB of RAM, keep `--fast-disk --disable-pinned-memory`. Without them,
+   ComfyUI copies the whole image model into RAM (about 29 GB), Windows starts paging to the
+   disk, and an image takes 10–16 minutes instead of about 4.
+
    Wait until you see `To see the GUI go to: http://127.0.0.1:8188`, and leave that window open.
 
 ## 3. Run Social Lift
@@ -138,6 +142,25 @@ When you create a post, the closest matching reference is used:
   the preview tells you to check it.
 
 The code is in `src/ai/designedPost.js`.
+
+## Using the live Vercel site with your local AI
+
+The live site (https://social-lift-app.vercel.app) can use the models on your own laptop,
+because the app calls `http://127.0.0.1:11434` (Ollama) and `http://127.0.0.1:8188` (ComfyUI).
+This only works in a browser on the same laptop that runs them. There are no API keys.
+
+1. Allow the live site in Ollama. Run this once in PowerShell, then quit and reopen the Ollama app:
+   ```
+   setx OLLAMA_ORIGINS "https://social-lift-app.vercel.app,http://localhost:8081"
+   ```
+2. Start ComfyUI with the live site as its CORS origin. ComfyUI accepts only one origin, so this
+   replaces `http://localhost:8081` while you use the live site:
+   ```
+   venv\Scripts\python main.py --lowvram --fast-disk --disable-pinned-memory --listen 127.0.0.1 --enable-cors-header https://social-lift-app.vercel.app
+   ```
+3. Open the live site in Chrome. When Chrome asks to let the site access apps on this
+   device, click **Allow**. If you clicked Block, re-enable it from the site settings
+   (the icon left of the address bar).
 
 ## Troubleshooting
 

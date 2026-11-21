@@ -35,7 +35,7 @@ export default function ReferenceEditor({ draft, onChange, onSave, onCancel, sav
       <Text style={styles.title}>Check the design notes</Text>
       <Text style={styles.subtitle}>
         {draft.detecting
-          ? 'Qwen3-VL is studying your reference post…'
+          ? 'Studying your reference post…'
           : 'New posts are drawn entirely from scratch from these notes — the reference image is only studied, never ' +
             'reused or written on. The header and footer use your Brand Kit name, logo and contact details.'}
       </Text>

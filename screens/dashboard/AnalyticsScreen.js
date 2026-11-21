@@ -255,31 +255,31 @@ const STAT_META = [
 
 const RECOMMENDATIONS = [
   {
-    tag: "Reel",
-    title: "Glaze-mixing behind-the-scenes",
-    summary: "Reels are outperforming static posts 3.2x this month",
-    detail:
-      "Behind-the-scenes process content consistently drives higher watch-through than finished-product shots. Consider filming the glaze-mixing step in short, close-up clips with on-screen captions, posted between 5–7pm when your audience is most active.",
-    suggestedTime: "Today, 6:00 PM",
-    expectedLift: "+18% engagement vs your Reel average",
-  },
-  {
     tag: "Carousel",
-    title: "Customer kitchen features",
-    summary: "Carousels have the highest save rate on Instagram",
+    title: "Placement congratulations round-up",
+    summary: "Placement posts get the most shares and comments of anything you post",
     detail:
-      "Posts featuring real customers using your product in their kitchens are saved 2.1x more than product-only shots. A 5–7 slide carousel mixing customer photos with a short quote performs best.",
-    suggestedTime: "Tomorrow, 11:00 AM",
-    expectedLift: "+2.1x save rate vs average carousel",
+      "Students, parents and alumni share placement posts widely, and they are what prospective students look at most. Put this season's selections in one carousel: a cover slide with the total offers and top package, then one slide per company with each student's photo, name, branch and role. Tag the recruiters on LinkedIn.",
+    suggestedTime: "Thursday, 11:00 AM",
+    expectedLift: "+2.4x shares vs a single-photo post",
   },
   {
     tag: "Post",
-    title: "Weekend workshop signup reminder",
-    summary: "Fridays at 9:30am get your highest CTR",
+    title: "Diwali greeting from JUET",
+    summary: "Festival greetings are your best-performing posts on Instagram",
     detail:
-      "Reminder posts sent Friday mornings see the strongest click-through to your signup page, likely because your audience is planning their weekend. A single clear CTA image outperforms multi-slide reminders.",
-    suggestedTime: "Friday, 9:30 AM",
-    expectedLift: "+27% CTR vs other weekdays",
+      "Diwali falls on 8 November. Post a greeting the evening before, in your usual style: diyas and rangoli around the JUET logo, with a short message from the Vice-Chancellor. Keep it to one clean image with no event details, so it reads as a greeting rather than a notice.",
+    suggestedTime: "7 Nov, 6:30 PM",
+    expectedLift: "+35% reach vs your average post",
+  },
+  {
+    tag: "Reel",
+    title: "A day on the Guna campus",
+    summary: "Reels reach 3x more non-followers than posts, which brings in prospective students",
+    detail:
+      "Prospective students and parents want to see campus life before they apply. Film a 30–45 second Reel that follows a student through the day: the main gate, a lab session, the library, the canteen and the hostels in the evening. Add on-screen captions, since most people watch with the sound off.",
+    suggestedTime: "Saturday, 6:00 PM",
+    expectedLift: "+60% reach to non-followers",
   },
 ];
 

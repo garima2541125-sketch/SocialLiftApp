@@ -87,7 +87,7 @@ async function ollamaJson({ model, system, user, images, options }) {
   try {
     return JSON.parse(data.message?.content || '');
   } catch (error) {
-    throw new Error(`${model} replied with something that was not valid JSON. Try again.`);
+    throw new Error('The AI replied with something that was not valid JSON. Try again.');
   }
 }
 
@@ -314,7 +314,7 @@ export async function planPost({ prompt, tone, platform, analyses = [], postType
   const parsed = await ollamaJson({ model: CAPTION_MODEL, system, user });
 
   if (!parsed.caption) {
-    throw new Error('Qwen3 did not return a caption. Try again.');
+    throw new Error('The AI did not return a caption. Try again.');
   }
 
   // Nothing matched: a plain post, or (when the account has its own
@@ -421,7 +421,28 @@ function buildImageWorkflow({ imagePrompt, width, height, seed }) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Queues a workflow and waits for its SaveImage node's output.
+// The image model doesn't fit in the laptop's GPU, so ComfyUI keeps the rest
+// in RAM. Left alone, that memory piles up over many images until Windows
+// starts paging to disk and each image takes 10+ minutes. Asking ComfyUI to
+// let go of its models after every image keeps it flat; the next image just
+// reloads them from disk, which costs far less than the paging did.
+function freeComfyMemory() {
+  return fetch(`${COMFYUI_URL}/free`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ unload_models: true, free_memory: true }),
+  }).catch(() => {});
+}
+
 async function runComfyWorkflow(workflow, outputNode) {
+  try {
+    return await pollComfyWorkflow(workflow, outputNode);
+  } finally {
+    freeComfyMemory();
+  }
+}
+
+async function pollComfyWorkflow(workflow, outputNode) {
   const queued = await request('ComfyUI', COMFYUI_URL, '/prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

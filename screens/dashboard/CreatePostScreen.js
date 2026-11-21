@@ -1519,17 +1519,17 @@ export default function CreatePostScreen() {
                 style={styles.modalGeneratingBody}
               >
                 {generationStep === 'analyzing' ? (
-                  'Looking at your images with Qwen3-VL…'
+                  'Looking at your images…'
                 ) : generationStep === 'style' ? (
                   "Reading your reference's design notes…"
                 ) : generationStep === 'checking' ? (
                   'Checking the heading and name are spelt right…'
                 ) : generationStep === 'photo' ? (
-                  'Placing the photo (SAM 3 cuts the person out where needed)…'
+                  'Placing the photo…'
                 ) : generationStep === 'image' ? (
                   Object.keys(postTypes).some(isReferenceType)
-                    ? 'Drawing your post from scratch in your design style with Qwen-Image — a minute or two.'
-                    : 'Painting a picture for your post with Qwen-Image — this can take a minute or two.'
+                    ? 'Drawing your post from scratch in your design style — a minute or two.'
+                    : 'Painting a picture for your post — this can take a minute or two.'
                 ) : (
                   <>
                     Working out what kind of post this is and writing
