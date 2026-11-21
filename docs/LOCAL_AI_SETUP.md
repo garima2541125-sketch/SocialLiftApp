@@ -162,6 +162,35 @@ This only works in a browser on the same laptop that runs them. There are no API
    device, click **Allow**. If you clicked Block, re-enable it from the site settings
    (the icon left of the address bar).
 
+## Sharing your laptop's AI with teammates
+
+Teammates without a suitable GPU can generate on the live site using your laptop's
+Ollama and ComfyUI, through a free Cloudflare tunnel.
+
+1. Install the tunnel program once: `winget install Cloudflare.cloudflared`. If the
+   installer fails (for example with error 1603), download the single-file version
+   instead. It needs no install or admin rights:
+   ```
+   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\cloudflared" | Out-Null
+   Invoke-WebRequest https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -OutFile "$env:LOCALAPPDATA\cloudflared\cloudflared.exe"
+   ```
+2. Start Ollama and ComfyUI as usual, then run:
+   ```
+   npm run share-ai
+   ```
+3. It prints a link (and copies it to the clipboard) like
+   `https://social-lift-app.vercel.app/?ai=https://<name>.trycloudflare.com/<key>`.
+   Send it to your teammates. They open it once, sign in, and use **Create** as normal.
+   No local-network prompt appears for them.
+
+Things to know:
+
+- It only works while that window stays open and your laptop is awake and plugged in.
+- Every run makes a new link with a new random key, so the old one stops working.
+  Send the new one after each restart.
+- Your GPU makes one image at a time. If two people generate together, the second waits.
+- To go back to their own computer's AI, a teammate opens `https://social-lift-app.vercel.app/?ai=local`.
+
 ## Troubleshooting
 
 | Message | Fix |

@@ -52,6 +52,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "share-ai": "node ./scripts/share-ai.js",
     "vercel-build": "expo export -p web"
   },
   "private": true

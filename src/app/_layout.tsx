@@ -8,8 +8,11 @@ import { AuthProvider } from '../context/AuthContext';
 import { BrandKitProvider } from '../context/BrandKitContext';
 import { OwnerDataProvider } from '../context/OwnerDataContext';
 import { ThemeProvider as AppThemeProvider } from '../context/ThemeContext';
+import { captureAiServerFromUrl } from '../ai/aiServer';
 
 SplashScreen.preventAutoHideAsync();
+// Before any sign-in redirect can drop it from the URL.
+captureAiServerFromUrl();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

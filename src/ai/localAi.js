@@ -1,4 +1,5 @@
 import { POST_TYPES, DEFAULT_POST_TYPE, isReferenceType } from './postTypes';
+import { aiServer } from './aiServer';
 
 // Free, fully local post generation:
 //   - Qwen3-VL via Ollama looks at uploaded images (person? logo? where's the face?)
@@ -9,8 +10,10 @@ import { POST_TYPES, DEFAULT_POST_TYPE, isReferenceType } from './postTypes';
 // and ComfyUI are running (see docs/LOCAL_AI_SETUP.md). The URLs are not
 // secrets — nothing here needs an API key — which is why EXPO_PUBLIC_ is fine.
 
-const OLLAMA_URL = process.env.EXPO_PUBLIC_OLLAMA_URL || 'http://127.0.0.1:11434';
-const COMFYUI_URL = process.env.EXPO_PUBLIC_COMFYUI_URL || 'http://127.0.0.1:8188';
+// Read on every request, so opening a shared-server link takes effect at once
+// (see aiServer.js).
+const ollamaUrl = () => aiServer().ollama;
+const comfyUrl = () => aiServer().comfyui;
 const CAPTION_MODEL = process.env.EXPO_PUBLIC_CAPTION_MODEL || 'qwen3:8b';
 const VISION_MODEL = process.env.EXPO_PUBLIC_VISION_MODEL || 'qwen3-vl:4b-instruct';
 
@@ -41,7 +44,9 @@ const POLL_INTERVAL_MS = 1500;
 const IMAGE_TIMEOUT_MS = 10 * 60 * 1000;
 
 const NOT_RUNNING_MESSAGE = (name, url) =>
-  `Couldn't reach ${name} at ${url}. Make sure it's running on this computer (see docs/LOCAL_AI_SETUP.md).`;
+  aiServer().shared
+    ? `Couldn't reach ${name} on the shared AI laptop. Ask its owner to check that the laptop is on and \`npm run share-ai\` is still running. If they restarted it, open the new link they send you.`
+    : `Couldn't reach ${name} at ${url}. Make sure it's running on this computer (see docs/LOCAL_AI_SETUP.md).`;
 
 // A busy ComfyUI on a laptop short of memory can miss a request for a few
 // seconds, so a failed connection is retried before giving up.
@@ -66,7 +71,7 @@ async function request(name, baseUrl, path, options) {
 }
 
 async function ollamaJson({ model, system, user, images, options }) {
-  const data = await request('Ollama', OLLAMA_URL, '/api/chat', {
+  const data = await request('Ollama', ollamaUrl(), '/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -427,7 +432,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // let go of its models after every image keeps it flat; the next image just
 // reloads them from disk, which costs far less than the paging did.
 function freeComfyMemory() {
-  return fetch(`${COMFYUI_URL}/free`, {
+  return fetch(`${comfyUrl()}/free`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ unload_models: true, free_memory: true }),
@@ -443,7 +448,7 @@ async function runComfyWorkflow(workflow, outputNode) {
 }
 
 async function pollComfyWorkflow(workflow, outputNode) {
-  const queued = await request('ComfyUI', COMFYUI_URL, '/prompt', {
+  const queued = await request('ComfyUI', comfyUrl(), '/prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: workflow }),
@@ -455,7 +460,7 @@ async function pollComfyWorkflow(workflow, outputNode) {
   while (Date.now() - startedAt < IMAGE_TIMEOUT_MS) {
     await sleep(POLL_INTERVAL_MS);
 
-    const history = await request('ComfyUI', COMFYUI_URL, `/history/${promptId}`);
+    const history = await request('ComfyUI', comfyUrl(), `/history/${promptId}`);
     const entry = history[promptId];
     if (!entry) continue;
 
@@ -470,7 +475,7 @@ async function pollComfyWorkflow(workflow, outputNode) {
         subfolder: image.subfolder || '',
         type: image.type || 'output',
       });
-      return `${COMFYUI_URL}/view?${query.toString()}`;
+      return `${comfyUrl()}/view?${query.toString()}`;
     }
   }
 
@@ -503,7 +508,7 @@ async function uploadToComfy(uri, filename) {
   const form = new FormData();
   form.append('image', blob, filename);
   form.append('overwrite', 'true');
-  const res = await request('ComfyUI', COMFYUI_URL, '/upload/image', { method: 'POST', body: form });
+  const res = await request('ComfyUI', comfyUrl(), '/upload/image', { method: 'POST', body: form });
   return res.subfolder ? `${res.subfolder}/${res.name}` : res.name;
 }
 
@@ -554,7 +559,7 @@ export async function readImageText(uri) {
 
   // Plain text, not JSON: the vision model occasionally breaks JSON, and a
   // check that can't be read should count as "not verified", not crash.
-  const data = await request('Ollama', OLLAMA_URL, '/api/chat', {
+  const data = await request('Ollama', ollamaUrl(), '/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
