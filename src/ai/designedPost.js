@@ -276,10 +276,20 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
   const side = photo ? info.photoSide || 'right' : null;
   const prompt = buildPrompt(info, fields, imagePrompt, side, info.photoStyle);
 
-  // The heading and the name must read back correctly, and a photo needs a
-  // big enough spot clear of the text. A second poster is drawn if the first
+  // Every line it was asked to write must read back correctly (small text
+  // gets garbled too: "Infosys" → "Infosjitus"), and a photo needs a big
+  // enough spot clear of the text. A second poster is drawn if the first
   // fails either check; the better of the two is kept.
-  const mustRead = [fields.headline, fields.personName].filter(Boolean);
+  const mustRead = [
+    fields.headline,
+    fields.subheadline,
+    fields.personName,
+    fields.personRole,
+    ...String(fields.details || '').split('·'),
+    fields.callToAction,
+  ]
+    .map((t) => String(t || '').trim())
+    .filter(Boolean);
   const score = (c) => [
     -c.missing.length,
     c.spot === null || c.spot?.good ? 1 : 0,
