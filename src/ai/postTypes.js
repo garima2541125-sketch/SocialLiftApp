@@ -133,6 +133,7 @@ function greetingType(ref) {
     requiredFields: ['headline'],
     requiredImages: [],
     imageSlots: {},
+    greeting: true,
     designReference: {
       ...ref,
       id: `${ref.id}-greeting`,
@@ -140,9 +141,9 @@ function greetingType(ref) {
       styleInfo: {
         category: 'Festival / occasion greeting',
         style:
-          'A simple, elegant festive greeting card. A soft gradient background in the brand colours, with ' +
-          'decorations for the occasion around the edges. The greeting large and centred, one short wish ' +
-          'line under it, and plenty of empty space. Calm, warm and uncluttered.',
+          'A simple, elegant festive design. A soft gradient background in the brand colours, with ' +
+          'decorations for the occasion around the edges. The main heading large and centred with one ' +
+          'smaller line under it, and plenty of empty space. Calm, warm and uncluttered.',
         headingText: '',
         headingStyle: info.headingStyle || 'large elegant script',
         palette: info.palette || [],

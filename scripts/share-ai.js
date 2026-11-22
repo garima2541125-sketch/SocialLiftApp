@@ -289,23 +289,39 @@ const server = http.createServer((req, res) => {
   headers.host = `${upstream.host}:${upstream.port}`;
 
   // Cloudflare drops a request that gets no reply within 100 s, and a Qwen3
-  // answer can take longer when the GPU is busy. So for Ollama calls the
-  // reply starts at once and a space is sent every 15 s until the answer
-  // arrives (JSON allows leading spaces); an Ollama error then comes through
-  // as {"error": ...} with status 200, which the app checks for.
-  const keepAlive = service === 'ollama' && req.method === 'POST';
+  // answer can take longer when the GPU is busy. So if an Ollama answer is
+  // still not there 20 s after the whole request has arrived, the reply is
+  // started and a space is sent every 15 s until it comes (JSON allows
+  // leading spaces); an Ollama error then arrives as {"error": ...} with
+  // status 200, which the app checks for. Never earlier: a reply that starts
+  // while the browser is still uploading (a 2 MB poster for the spelling
+  // check) makes Cloudflare cut the upload short.
+  const keepAliveAllowed = service === 'ollama' && req.method === 'POST';
+  let keptAlive = false;
+  let waitTimer = null;
   let ticker = null;
-  if (keepAlive) {
+  const stopTimers = () => {
+    clearTimeout(waitTimer);
+    clearInterval(ticker);
+  };
+  const startKeepAlive = () => {
+    if (res.headersSent || res.writableEnded) return;
+    keptAlive = true;
     res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.write(' ');
     ticker = setInterval(() => res.write(' '), 15000);
+  };
+  if (keepAliveAllowed) {
+    req.on('end', () => {
+      waitTimer = setTimeout(startKeepAlive, 20000);
+    });
   }
 
   const forward = http.request(
     { ...upstream, method: req.method, path: `/${rest.join('/')}${query ? `?${query}` : ''}`, headers },
     (upstreamRes) => {
-      clearInterval(ticker);
-      if (!keepAlive) {
+      stopTimers();
+      if (!keptAlive) {
         const out = {};
         for (const [name, value] of Object.entries(upstreamRes.headers)) {
           if (!name.startsWith('access-control-') && name !== 'connection' && name !== 'keep-alive') out[name] = value;
@@ -316,16 +332,16 @@ const server = http.createServer((req, res) => {
     }
   );
   forward.on('error', () => {
-    clearInterval(ticker);
+    stopTimers();
     const message = `${service === 'ollama' ? 'Ollama' : 'ComfyUI'} is not running on the sharing laptop.`;
-    if (keepAlive) return res.end(JSON.stringify({ error: message }));
+    if (keptAlive) return res.end(JSON.stringify({ error: message }));
     if (!res.headersSent) res.writeHead(502, { ...cors, 'Content-Type': 'text/plain' });
     return res.end(message);
   });
   // The browser went away before the answer (tab closed, connection cut):
   // stop the work instead of leaving it to hold the GPU for nobody.
   res.on('close', () => {
-    clearInterval(ticker);
+    stopTimers();
     if (!res.writableEnded) forward.destroy();
   });
   req.pipe(forward);
@@ -519,17 +535,17 @@ async function main() {
     server.listen(PROXY_PORT, '127.0.0.1', resolve);
   });
 
-  console.log('Opening the Cloudflare tunnel (takes ~10 seconds)...');
-  const tunnel = spawn(cloudflared, ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PROXY_PORT}`], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  // Cloudflare's free quick tunnels sometimes drop while cloudflared keeps
+  // running. The tunnel checks its own public address every minute and,
+  // after 3 failed checks in a row (or if cloudflared exits), opens a new
+  // one: the link changes, and the new one is printed and copied.
+  let tunnel = null;
+  let stopping = false;
+  let failures = 0;
+  let opening = false;
 
-  let announced = false;
-  const onOutput = (chunk) => {
-    const match = !announced && String(chunk).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-    if (!match) return;
-    announced = true;
-    const server = `${match[0]}/${KEY}`;
+  const announce = (url) => {
+    const server = `${url}/${KEY}`;
     publicBase = server;
     const link = `${SITE}/?ai=${encodeURIComponent(server)}`;
     console.log('\n================ SHARING IS ON ================');
@@ -549,18 +565,61 @@ async function main() {
       console.log('(The link is also copied to your clipboard.)\n');
     }
   };
-  tunnel.stdout.on('data', onOutput);
-  tunnel.stderr.on('data', onOutput);
-  tunnel.on('exit', (code) => {
-    console.error(`The Cloudflare tunnel stopped (exit code ${code}). Sharing is off; run npm run share-ai again.`);
-    server.close();
-    process.exit(1);
-  });
+
+  const openTunnel = () => {
+    opening = true;
+    failures = 0;
+    console.log('Opening the Cloudflare tunnel (takes ~10 seconds)...');
+    const child = spawn(cloudflared, ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PROXY_PORT}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    tunnel = child;
+    let announced = false;
+    const onOutput = (chunk) => {
+      const match = !announced && String(chunk).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (!match) return;
+      announced = true;
+      // Give Cloudflare a few seconds to route the new address before checking it.
+      setTimeout(() => {
+        opening = false;
+      }, 20000);
+      announce(match[0]);
+    };
+    child.stdout.on('data', onOutput);
+    child.stderr.on('data', onOutput);
+    child.on('exit', (code) => {
+      if (stopping || child !== tunnel) return;
+      console.error(`[${new Date().toLocaleTimeString()}] The Cloudflare tunnel stopped (exit code ${code}) — reopening it with a new link...`);
+      openTunnel();
+    });
+  };
+
+  const reopenTunnel = () => {
+    console.error(`[${new Date().toLocaleTimeString()}] The sharing link stopped answering — opening a new one (send the new link again)...`);
+    const old = tunnel;
+    tunnel = null;
+    old?.kill();
+    openTunnel();
+  };
+
+  setInterval(async () => {
+    if (opening || !publicBase || stopping) return;
+    try {
+      const res = await fetch(`${publicBase}/instagram/status`, { signal: AbortSignal.timeout(15000) });
+      failures = res.ok ? 0 : failures + 1;
+    } catch {
+      failures += 1;
+    }
+    if (failures >= 3) reopenTunnel();
+  }, 60 * 1000);
+
+  openTunnel();
 
   const stop = () => {
+    stopping = true;
     console.log('\nStopping sharing...');
     if (comfyChild) spawnSync('taskkill', ['/PID', String(comfyChild.pid), '/T', '/F']);
-    tunnel.kill();
+    tunnel?.kill();
     server.close();
     process.exit(0);
   };

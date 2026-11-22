@@ -125,7 +125,12 @@ async function request(name, baseUrl, path, options) {
     const body = await res.text().catch(() => '');
     throw new Error(`${name} returned ${res.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
   }
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`${name}'s answer was cut off on the way. Press Generate to try again.`);
+  }
   // Through the sharing proxy, an Ollama error arrives as {"error": "..."}
   // with status 200 (the proxy has already started its reply).
   if (data && typeof data.error === 'string') throw new Error(`${name}: ${data.error}`);
@@ -283,13 +288,26 @@ function describeImages(analyses) {
     .join('\n');
 }
 
+// "happy diwali post for JUET" -> "Happy Diwali"; otherwise "Warm Wishes".
+function greetingFromPrompt(prompt) {
+  const title = (s) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+  const m = prompt.match(/\b(happy|merry|blessed|joyous)\s+(new\s+year(?:\s+\d{4})?|[a-z0-9']+(?:\s+\d{4})?)/i);
+  if (m) return title(`${m[1]} ${m[2]}`.toLowerCase());
+  const day = prompt.match(/\b((?:[a-z']+\s+){1,2}day)\b/i); // "Republic Day wishes" -> "Happy Republic Day"
+  if (day && !/^(a|the|this|every|one)\s/i.test(day[1])) return title(`happy ${day[1].toLowerCase()}`);
+  return 'Warm Wishes';
+}
+
 function describeType([key, t]) {
-  const fields = Object.entries(t.fields).map(([f, d]) => `${f} (${d})`);
+  // Creative fields are written fresh (a heading, a wish), not copied, so the
+  // "never invent facts" rule doesn't leave them empty.
+  const creative = new Set(t.creativeFields || []);
+  const fields = Object.entries(t.fields).map(([f, d]) => `${f} (${creative.has(f) ? 'WRITE this yourself: ' : ''}${d})`);
   const slots = Object.entries(t.imageSlots).map(([s, d]) => `${s} (takes a ${d.kinds.join('/')} image)`);
   return (
     `- "${key}": ${t.classify}.` +
     (fields.length ? ` Fields: ${fields.join('; ')}.` : '') +
-    ` Image slots: ${slots.join('; ')}.`
+    (slots.length ? ` Image slots: ${slots.join('; ')}.` : ' No images.')
   );
 }
 
@@ -442,6 +460,12 @@ export async function planPost({ prompt, tone, platform, analyses = [], postType
   if (type.designReference) {
     // The design's own heading when the model left it out.
     if (!fields.headline) fields.headline = headingOf(type.designReference);
+    // A greeting always says something: the greeting named in the request
+    // ("Happy Diwali") and a plain wish, if the model left them out.
+    if (type.greeting) {
+      if (!fields.headline) fields.headline = greetingFromPrompt(prompt);
+      if (!fields.subheadline) fields.subheadline = 'Wishing you joy, peace and happiness.';
+    }
     // Each line of the design says something new: no subheadline that
     // repeats the name, no detail already on the name or role lines.
     const flat = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
