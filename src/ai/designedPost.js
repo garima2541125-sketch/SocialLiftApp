@@ -303,8 +303,16 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
   let best = null;
   // A slow GPU (laptop on battery) would make a redraw take another ~10 min,
   // so after a slow drawing the best one so far is kept, with its warnings.
+  // Likewise when the first drawing already used half of the ~5 minute
+  // budget for a post: a redraw would push it well past that.
   let slow = false;
-  for (let attempt = 1; attempt <= 2 && !(attempt > 1 && slow); attempt += 1) {
+  const startedAt = Date.now();
+  const REDRAW_BUDGET_MS = 150 * 1000;
+  for (
+    let attempt = 1;
+    attempt <= 2 && !(attempt > 1 && (slow || Date.now() - startedAt > REDRAW_BUDGET_MS));
+    attempt += 1
+  ) {
     onStep?.('image');
     const onSlow = () => {
       slow = true;

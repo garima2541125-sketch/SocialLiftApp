@@ -1,4 +1,4 @@
-import { analyzeImage, planPost, generateImage, platformAspect } from './localAi';
+import { analyzeImage, planPost, generateImage, onGpuWait, platformAspect } from './localAi';
 import { POST_TYPES } from './postTypes';
 import { cropFace, cropToAspect } from '../utils/cropImage';
 import { composeDesigned } from './designedPost';
@@ -29,7 +29,23 @@ async function cropForSlot(uri, slotDef, analysis, platform) {
   }
 }
 
-export async function composePost({
+export async function composePost({ onStep: reportStep, ...args }) {
+  // While another post holds the AI laptop's GPU, say so; afterwards go back
+  // to the step that was showing.
+  let current = 'planning';
+  const onStep = (step) => {
+    current = step;
+    reportStep?.(step);
+  };
+  onGpuWait((waiting) => reportStep?.(waiting ? 'waiting' : current));
+  try {
+    return await composeSteps({ ...args, onStep });
+  } finally {
+    onGpuWait(null);
+  }
+}
+
+async function composeSteps({
   prompt,
   tone,
   platform,

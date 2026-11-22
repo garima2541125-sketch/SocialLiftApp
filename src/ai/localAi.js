@@ -54,16 +54,69 @@ const NOT_RUNNING_MESSAGE = (name, url) =>
     : `Couldn't reach ${name} at ${url}. Make sure it's running on this computer (see docs/LOCAL_AI_SETUP.md).`;
 
 // A busy ComfyUI on a laptop short of memory can miss a request for a few
-// seconds, so a failed connection is retried before giving up.
+// seconds, so a connection that fails straight away is retried. A request
+// that failed after running for a while is NOT sent again: the AI laptop is
+// still working on it, and a second copy would only queue behind the first.
 const CONNECT_ATTEMPTS = 4;
 const CONNECT_RETRY_MS = 3000;
+const QUICK_FAILURE_MS = 10 * 1000;
+
+// ---- One GPU, taken in turns ----
+// Qwen3 (Ollama) and Qwen-Image (ComfyUI) share one 8 GB GPU, possibly with
+// other people generating through the shared link. Running both at once
+// starves them and an image can stall for good, so before using either, the
+// app waits until neither is busy. onGpuWait(fn) gets fn(true) when a wait
+// starts and fn(false) when it ends, for the progress message.
+const GPU_WAIT_LIMIT_MS = 20 * 60 * 1000;
+let gpuWaitListener = null;
+export function onGpuWait(fn) {
+  gpuWaitListener = fn;
+}
+
+async function gpuBusy() {
+  try {
+    const [queue, ps] = await Promise.all([
+      fetch(`${comfyUrl()}/queue`).then((r) => r.json()),
+      fetch(`${ollamaUrl()}/api/ps`).then((r) => r.json()),
+    ]);
+    return queue.queue_running.length + queue.queue_pending.length > 0 || (ps.models || []).length > 0;
+  } catch {
+    return false; // can't tell: the request itself will report a real problem
+  }
+}
+
+async function waitForFreeGpu() {
+  const startedAt = Date.now();
+  let waiting = false;
+  try {
+    while (await gpuBusy()) {
+      if (!waiting) {
+        waiting = true;
+        gpuWaitListener?.(true);
+      }
+      if (Date.now() - startedAt > GPU_WAIT_LIMIT_MS) {
+        throw new Error('The AI laptop has been busy with other posts for 20 minutes. Try again in a while.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  } finally {
+    if (waiting) gpuWaitListener?.(false);
+  }
+}
 
 async function request(name, baseUrl, path, options) {
+  if (name === 'Ollama' && options?.method === 'POST') await waitForFreeGpu();
   let res;
   for (let attempt = 1; !res; attempt += 1) {
+    const sentAt = Date.now();
     try {
       res = await fetch(`${baseUrl}${path}`, options);
     } catch (error) {
+      if (Date.now() - sentAt > QUICK_FAILURE_MS) {
+        throw new Error(
+          `${name} took too long to answer — the AI laptop may be busy or on battery. Wait a minute, then try again.`
+        );
+      }
       if (attempt >= CONNECT_ATTEMPTS) throw new Error(NOT_RUNNING_MESSAGE(name, baseUrl));
       await new Promise((resolve) => setTimeout(resolve, CONNECT_RETRY_MS * attempt));
     }
@@ -72,7 +125,11 @@ async function request(name, baseUrl, path, options) {
     const body = await res.text().catch(() => '');
     throw new Error(`${name} returned ${res.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
   }
-  return res.json();
+  const data = await res.json();
+  // Through the sharing proxy, an Ollama error arrives as {"error": "..."}
+  // with status 200 (the proxy has already started its reply).
+  if (data && typeof data.error === 'string') throw new Error(`${name}: ${data.error}`);
+  return data;
 }
 
 async function ollamaJson({ model, system, user, images, options }) {
@@ -505,6 +562,7 @@ async function runComfyWorkflow(workflow, outputNode, { onSlow } = {}) {
 
 async function pollComfyWorkflow(workflow, outputNode, onSlow) {
   if (activeJob && !activeJob.done) cancelComfyJob(activeJob);
+  await waitForFreeGpu();
 
   const queued = await request('ComfyUI', comfyUrl(), '/prompt', {
     method: 'POST',

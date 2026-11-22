@@ -1576,6 +1576,8 @@ export default function CreatePostScreen() {
                   'Checking the heading and name are spelt right…'
                 ) : generationStep === 'photo' ? (
                   'Placing the photo…'
+                ) : generationStep === 'waiting' ? (
+                  'Waiting for the AI laptop — it is finishing another post first. Yours starts as soon as it is free.'
                 ) : generationStep === 'slow' ? (
                   onBattery
                     ? 'Still drawing, slowly: this laptop is running on battery, which makes the GPU up to 8× slower. Plug it in and the rest goes much faster. Keep this page open.'

@@ -240,22 +240,45 @@ const server = http.createServer((req, res) => {
   }
   headers.host = `${upstream.host}:${upstream.port}`;
 
+  // Cloudflare drops a request that gets no reply within 100 s, and a Qwen3
+  // answer can take longer when the GPU is busy. So for Ollama calls the
+  // reply starts at once and a space is sent every 15 s until the answer
+  // arrives (JSON allows leading spaces); an Ollama error then comes through
+  // as {"error": ...} with status 200, which the app checks for.
+  const keepAlive = service === 'ollama' && req.method === 'POST';
+  let ticker = null;
+  if (keepAlive) {
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.write(' ');
+    ticker = setInterval(() => res.write(' '), 15000);
+  }
+
   const forward = http.request(
     { ...upstream, method: req.method, path: `/${rest.join('/')}${query ? `?${query}` : ''}`, headers },
     (upstreamRes) => {
-      const out = {};
-      for (const [name, value] of Object.entries(upstreamRes.headers)) {
-        if (!name.startsWith('access-control-') && name !== 'connection' && name !== 'keep-alive') out[name] = value;
+      clearInterval(ticker);
+      if (!keepAlive) {
+        const out = {};
+        for (const [name, value] of Object.entries(upstreamRes.headers)) {
+          if (!name.startsWith('access-control-') && name !== 'connection' && name !== 'keep-alive') out[name] = value;
+        }
+        res.writeHead(upstreamRes.statusCode || 502, { ...out, ...cors });
       }
-      res.writeHead(upstreamRes.statusCode || 502, { ...out, ...cors });
       upstreamRes.pipe(res);
     }
   );
   forward.on('error', () => {
-    if (!res.headersSent) {
-      res.writeHead(502, { ...cors, 'Content-Type': 'text/plain' });
-    }
-    res.end(`${service === 'ollama' ? 'Ollama' : 'ComfyUI'} is not running on the sharing laptop.`);
+    clearInterval(ticker);
+    const message = `${service === 'ollama' ? 'Ollama' : 'ComfyUI'} is not running on the sharing laptop.`;
+    if (keepAlive) return res.end(JSON.stringify({ error: message }));
+    if (!res.headersSent) res.writeHead(502, { ...cors, 'Content-Type': 'text/plain' });
+    return res.end(message);
+  });
+  // The browser went away before the answer (tab closed, connection cut):
+  // stop the work instead of leaving it to hold the GPU for nobody.
+  res.on('close', () => {
+    clearInterval(ticker);
+    if (!res.writableEnded) forward.destroy();
   });
   req.pipe(forward);
 
