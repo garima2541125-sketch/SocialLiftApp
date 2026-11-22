@@ -17,6 +17,7 @@
 // SHARE_AI_INSTAGRAM_UIDS in .env.local (git-ignored), the signed-in accounts
 // listed there can publish a finished post from the app:
 //      GET  /<key>/instagram/status    -> { enabled, username }
+//      GET  /<key>/instagram/analytics (Firebase ID token) followers + every post's likes/comments
 //      POST /<key>/instagram/publish   (Firebase ID token in Authorization)
 //      GET  /<key>/media/<id>.jpg      the poster, for Instagram to fetch
 // The token never leaves this laptop.
@@ -190,11 +191,57 @@ async function publishToInstagram(req) {
   return { url: permalink };
 }
 
+// The account's followers and every post's likes / comments, for the
+// Analytics page (the token has no insights permission, so no reach).
+// Cached for 5 minutes.
+let analyticsCache = { at: 0, data: null };
+async function instagramAnalytics(req) {
+  const uid = await verifyFirebaseToken((req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  if (!IG.uids.has(uid)) throw new Error('This account has no Instagram analytics.');
+  if (Date.now() - analyticsCache.at < 5 * 60 * 1000) return analyticsCache.data;
+
+  const token = encodeURIComponent(IG.token);
+  const account = await graph(`${IG.userId}?fields=username,followers_count,follows_count,media_count&access_token=${token}`);
+  const posts = [];
+  let next = `${IG.userId}/media?fields=id,caption,media_type,timestamp,like_count,comments_count,permalink&limit=100&access_token=${token}`;
+  while (next && posts.length < 500) {
+    const page = await graph(next);
+    posts.push(...(page.data || []));
+    next = page.paging?.next ? page.paging.next.replace(`${GRAPH}/`, '') : null;
+  }
+  const data = {
+    username: account.username,
+    followers: account.followers_count || 0,
+    following: account.follows_count || 0,
+    postCount: account.media_count || posts.length,
+    fetchedAt: new Date().toISOString(),
+    posts: posts.map((p) => ({
+      id: p.id,
+      type: p.media_type,
+      time: p.timestamp,
+      likes: p.like_count || 0,
+      comments: p.comments_count || 0,
+      url: p.permalink,
+      caption: String(p.caption || '').slice(0, 140),
+    })),
+  };
+  analyticsCache = { at: Date.now(), data };
+  return data;
+}
+
 async function handleInstagram(req, res, cors, action) {
   const send = (status, body) =>
     res.writeHead(status, { ...cors, 'Content-Type': 'application/json' }).end(JSON.stringify(body));
   const enabled = Boolean(IG.username && publicBase);
   if (action === 'status') return send(200, { enabled, username: IG.username });
+  if (action === 'analytics') {
+    if (!IG.username) return send(503, { error: 'Instagram is not set up on the sharing laptop.' });
+    try {
+      return send(200, await instagramAnalytics(req));
+    } catch (error) {
+      return send(403, { error: error.message });
+    }
+  }
   if (action !== 'publish' || req.method !== 'POST') return send(404, { error: 'Not found' });
   if (!enabled) return send(503, { error: 'Instagram posting is not set up on the sharing laptop.' });
   try {
@@ -345,19 +392,23 @@ async function waitForComfy(timeoutMs = 180000) {
   return false;
 }
 
-// Private memory (GB) of every ComfyUI process (the venv launcher starts the
-// real python as a child, so both are counted).
-function comfyMemoryGb() {
+// Every running ComfyUI process (the venv launcher starts the real python as
+// a child, so there are two): their ids and total private memory in GB.
+function comfyProcesses() {
   const ps = spawnSync(
     'powershell',
     [
       '-NoProfile',
       '-Command',
-      "(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -match 'main\\.py' -and $_.CommandLine -match '--fast-disk' } | Measure-Object PrivatePageCount -Sum).Sum",
+      "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -match 'main\.py' -and $_.CommandLine -match '--fast-disk' } | ForEach-Object { \"$($_.ProcessId) $($_.PrivatePageCount)\" }",
     ],
     { encoding: 'utf8' }
   );
-  return Number(ps.stdout.trim() || 0) / 1024 ** 3;
+  const rows = ps.stdout
+    .split('\n')
+    .map((l) => l.trim().split(' ').map(Number))
+    .filter((r) => r.length === 2 && r[0]);
+  return { pids: rows.map((r) => r[0]), gb: rows.reduce((n, r) => n + r[1], 0) / 1024 ** 3 };
 }
 
 // Newest file ComfyUI saved (output) or was sent (input): its last job, even
@@ -396,16 +447,30 @@ async function aiIdle() {
 
 async function watchComfy() {
   if (restarting || process.platform !== 'win32') return;
-  const gb = comfyMemoryGb();
-  if (gb < COMFY_MEMORY_LIMIT_GB) return;
-  if (!comfyChild) {
-    console.warn(`  ! ComfyUI is using ${gb.toFixed(0)} GB and will be slow. Close it; share-ai then starts and looks after it.`);
+  const { pids, gb } = comfyProcesses();
+  // Not running at all (crashed, or closed with an earlier share-ai): start it.
+  if (!pids.length && fs.existsSync(path.join(COMFY_DIR, 'main.py'))) {
+    let up = false;
+    try {
+      up = (await fetch('http://127.0.0.1:8188/system_stats')).ok;
+    } catch {
+      // down
+    }
+    if (up) return;
+    restarting = true;
+    console.log(`[${new Date().toLocaleTimeString()}] ComfyUI was not running — starting it...`);
+    startComfy();
+    const ok = await waitForComfy();
+    console.log(`[${new Date().toLocaleTimeString()}] ComfyUI ${ok ? 'started' : 'did not start — check the log in ComfyUI/user/sociallift-comfyui.log'}`);
+    restarting = false;
     return;
   }
-  if (!(await aiIdle())) return;
+  if (gb < COMFY_MEMORY_LIMIT_GB || !(await aiIdle())) return;
+  // Restarted whoever started it (this script, an earlier run, or by hand):
+  // only ever while idle, and it comes back with the same flags.
   restarting = true;
   console.log(`[${new Date().toLocaleTimeString()}] ComfyUI grew to ${gb.toFixed(0)} GB — restarting it to keep images fast...`);
-  spawnSync('taskkill', ['/PID', String(comfyChild.pid), '/T', '/F']);
+  for (const pid of pids) spawnSync('taskkill', ['/PID', String(pid), '/T', '/F']);
   startComfy();
   const ok = await waitForComfy();
   console.log(`[${new Date().toLocaleTimeString()}] ComfyUI ${ok ? 'restarted' : 'did not come back — check the log in ComfyUI/user/sociallift-comfyui.log'}`);
@@ -444,7 +509,7 @@ async function main() {
   } else if (!comfyRunning) {
     await checkLocal('ComfyUI', 'http://127.0.0.1:8188/system_stats');
   } else {
-    console.log('ComfyUI is already running (started elsewhere): memory is watched, but it can only be restarted by you.');
+    console.log('ComfyUI is already running: its memory is watched, and it is restarted automatically when idle.');
   }
   setInterval(() => watchComfy().catch(() => {}), 20 * 1000);
   await checkInstagram();

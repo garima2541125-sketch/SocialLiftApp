@@ -22,6 +22,20 @@ export async function getInstagramStatus() {
   }
 }
 
+// The account's followers and posts (likes, comments, type, time) for the
+// Analytics page, or null when this account has none (not allowed, or not
+// using the shared AI link).
+export async function getInstagramAnalytics(idToken) {
+  const base = instagramBase();
+  if (!base || !idToken) return null;
+  try {
+    const res = await fetch(`${base}/analytics`, { headers: { Authorization: `Bearer ${idToken}` } });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 function loadImage(uri) {
   return new Promise((resolve, reject) => {
     const img = new window.Image();

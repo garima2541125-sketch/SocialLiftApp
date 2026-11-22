@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   Modal,
   Pressable,
 } from "react-native";
+import { useAuth } from "../../src/context/AuthContext";
+import { getInstagramAnalytics } from "../../src/ai/instagram";
+import { LIVE_STAT_META, buildLiveRange, buildRecommendations } from "../../src/ai/instagramAnalytics";
 import DashboardShell from "./DashboardShell";
 
 const DARK_TEXT = "#1A1A1A";
@@ -291,15 +294,36 @@ export default function AnalyticsScreen() {
   const [selectedBarIndex, setSelectedBarIndex] = useState(null);
   const [selectedRec, setSelectedRec] = useState(null);
 
-  const data = RANGE_DATA[range];
+  // Live Instagram numbers for accounts linked to Instagram on the AI laptop
+  // (the JUET account); everyone else sees the demo figures below.
+  const { user, getToken } = useAuth();
+  const [live, setLive] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLive(null);
+    if (!user) return undefined;
+    getToken()
+      .then(getInstagramAnalytics)
+      .then((result) => {
+        if (!cancelled) setLive(result);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  const data = useMemo(() => (live ? buildLiveRange(live, range) : RANGE_DATA[range]), [live, range]);
+  const statMeta = live ? LIVE_STAT_META : STAT_META;
+  const recommendations = useMemo(() => (live ? buildRecommendations(live) : RECOMMENDATIONS), [live]);
   const maxValue = useMemo(
-    () => Math.max(...data.chart.values),
+    () => Math.max(...data.chart.values, 1),
     [data]
   );
 
   const selectedStat = selectedStatKey ? data.stats[selectedStatKey] : null;
   const selectedStatLabel = selectedStatKey
-    ? STAT_META.find((s) => s.key === selectedStatKey).label
+    ? statMeta.find((s) => s.key === selectedStatKey).label
     : "";
 
   return (
@@ -308,7 +332,9 @@ export default function AnalyticsScreen() {
         {/* Header row: subtitle + range selector */}
         <View style={styles.headerRow}>
           <Text style={styles.subtitle}>
-            Performance across Instagram &amp; LinkedIn, {data.rangeLabel}.
+            {live
+              ? `Live from Instagram @${live.username}, ${data.rangeLabel}.`
+              : `Performance across Instagram & LinkedIn, ${data.rangeLabel}.`}
           </Text>
           <View style={styles.rangeSelector}>
             {RANGE_OPTIONS.map((opt) => {
@@ -338,7 +364,7 @@ export default function AnalyticsScreen() {
 
         {/* Stat cards */}
         <View style={styles.statsRow}>
-          {STAT_META.map((meta) => {
+          {statMeta.map((meta) => {
             const stat = data.stats[meta.key];
             return (
               <TouchableOpacity
@@ -355,7 +381,7 @@ export default function AnalyticsScreen() {
                     { color: stat.deltaUp ? GREEN : RED },
                   ]}
                 >
-                  {stat.delta} vs last period
+                  {stat.deltaNote || `${stat.delta} vs last period`}
                 </Text>
                 <Text style={styles.tapHint}>Tap for details ›</Text>
               </TouchableOpacity>
@@ -415,10 +441,10 @@ export default function AnalyticsScreen() {
           <View style={styles.recPanel}>
             <Text style={styles.recTitle}>Recommended next</Text>
             <Text style={styles.recSubtitle}>
-              Based on your preferences + performance history.
+              {live ? "Based on your Instagram history." : "Based on your preferences + performance history."}
             </Text>
 
-            {RECOMMENDATIONS.map((rec, idx) => (
+            {recommendations.map((rec, idx) => (
               <TouchableOpacity
                 key={idx}
                 style={styles.recCard}
@@ -456,7 +482,7 @@ export default function AnalyticsScreen() {
                     { color: selectedStat.deltaUp ? GREEN : RED, marginBottom: 14 },
                   ]}
                 >
-                  {selectedStat.delta} vs last period
+                  {selectedStat.deltaNote || `${selectedStat.delta} vs last period`}
                 </Text>
                 <Text style={styles.modalDetailText}>{selectedStat.detail}</Text>
 
