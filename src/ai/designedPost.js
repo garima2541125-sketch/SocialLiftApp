@@ -301,9 +301,16 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
     return i >= 0 && sa[i] > sb[i];
   };
   let best = null;
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  // A slow GPU (laptop on battery) would make a redraw take another ~10 min,
+  // so after a slow drawing the best one so far is kept, with its warnings.
+  let slow = false;
+  for (let attempt = 1; attempt <= 2 && !(attempt > 1 && slow); attempt += 1) {
     onStep?.('image');
-    const uri = (await generateImage({ imagePrompt: prompt, size })).uri;
+    const onSlow = () => {
+      slow = true;
+      onStep?.('slow');
+    };
+    const uri = (await generateImage({ imagePrompt: prompt, size, onSlow })).uri;
     onStep?.('checking');
     const text = normalise(await readImageText(uri));
     const candidate = {

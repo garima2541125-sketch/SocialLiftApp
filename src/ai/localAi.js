@@ -39,9 +39,14 @@ export function platformAspect(platform) {
 }
 
 const POLL_INTERVAL_MS = 1500;
-// Generous: with RAM to spare an image takes ~90s on an 8 GB GPU, but when
-// the laptop is short on memory it can take several minutes.
-const IMAGE_TIMEOUT_MS = 10 * 60 * 1000;
+// Plugged in, an image takes ~1.5 min on an 8 GB laptop GPU; on battery the
+// GPU is throttled and the same image takes 7-11 min. So there's no short
+// time limit: the app waits as long as ComfyUI is still working on the job,
+// says why it's slow after SLOW_AFTER_MS, and only gives up at the hard limit
+// or when ComfyUI has lost the job (restarted, cancelled from its window).
+const SLOW_AFTER_MS = 3 * 60 * 1000;
+const IMAGE_HARD_LIMIT_MS = 40 * 60 * 1000;
+const QUEUE_CHECK_MS = 20 * 1000;
 
 const NOT_RUNNING_MESSAGE = (name, url) =>
   aiServer().shared
@@ -459,57 +464,122 @@ function freeComfyMemory() {
   }).catch(() => {});
 }
 
-async function runComfyWorkflow(workflow, outputNode) {
+// The ComfyUI job this browser tab is waiting for. A job nobody waits for any
+// more (the tab started a new one, or was closed) is cancelled, so it can't
+// hold up the next image on the GPU for minutes.
+let activeJob = null;
+
+function cancelComfyJob(job, { beacon = false } = {}) {
+  job.cancelled = true;
+  const calls = [
+    ['/interrupt', { prompt_id: job.id }], // only stops it if it's the one running
+    ['/queue', { delete: [job.id] }], // only removes it if it's still waiting
+  ];
+  calls.forEach(([path, body]) => {
+    const url = `${comfyUrl()}${path}`;
+    if (beacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([JSON.stringify(body)], { type: 'text/plain' }));
+    } else {
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(
+        () => {}
+      );
+    }
+  });
+}
+
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('pagehide', () => {
+    if (activeJob && !activeJob.done) cancelComfyJob(activeJob, { beacon: true });
+  });
+}
+
+class JobCancelled extends Error {}
+
+async function runComfyWorkflow(workflow, outputNode, { onSlow } = {}) {
   try {
-    return await pollComfyWorkflow(workflow, outputNode);
+    return await pollComfyWorkflow(workflow, outputNode, onSlow);
   } finally {
     freeComfyMemory();
   }
 }
 
-async function pollComfyWorkflow(workflow, outputNode) {
+async function pollComfyWorkflow(workflow, outputNode, onSlow) {
+  if (activeJob && !activeJob.done) cancelComfyJob(activeJob);
+
   const queued = await request('ComfyUI', comfyUrl(), '/prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: workflow }),
   });
 
-  const promptId = queued.prompt_id;
+  const job = { id: queued.prompt_id, done: false, cancelled: false };
+  activeJob = job;
   const startedAt = Date.now();
+  let lastQueueCheck = startedAt;
+  let slowNoted = false;
 
-  while (Date.now() - startedAt < IMAGE_TIMEOUT_MS) {
-    await sleep(POLL_INTERVAL_MS);
+  try {
+    while (Date.now() - startedAt < IMAGE_HARD_LIMIT_MS) {
+      await sleep(POLL_INTERVAL_MS);
+      if (job.cancelled) throw new JobCancelled('Replaced by a newer request.');
 
-    const history = await request('ComfyUI', comfyUrl(), `/history/${promptId}`);
-    const entry = history[promptId];
-    if (!entry) continue;
+      const history = await request('ComfyUI', comfyUrl(), `/history/${job.id}`);
+      const entry = history[job.id];
 
-    if (entry.status?.status_str === 'error') {
-      throw new Error('ComfyUI failed while generating the image. Check the ComfyUI window for details.');
+      if (entry?.status?.status_str === 'error') {
+        throw new Error('ComfyUI failed while generating the image. Check the ComfyUI window for details.');
+      }
+      const image = entry?.outputs?.[outputNode]?.images?.[0];
+      if (image) {
+        const query = new URLSearchParams({
+          filename: image.filename,
+          subfolder: image.subfolder || '',
+          type: image.type || 'output',
+        });
+        return `${comfyUrl()}/view?${query.toString()}`;
+      }
+      if (entry) continue; // finished without an image yet: history catches up next poll
+
+      if (!slowNoted && Date.now() - startedAt > SLOW_AFTER_MS) {
+        slowNoted = true;
+        onSlow?.();
+      }
+
+      // Still running or waiting its turn? If ComfyUI no longer has it at
+      // all, it was restarted or the job was cancelled in its window.
+      if (Date.now() - lastQueueCheck > QUEUE_CHECK_MS) {
+        lastQueueCheck = Date.now();
+        const queue = await request('ComfyUI', comfyUrl(), '/queue');
+        const has = (list) => (list || []).some((item) => item[1] === job.id);
+        if (!has(queue.queue_running) && !has(queue.queue_pending)) {
+          const again = await request('ComfyUI', comfyUrl(), `/history/${job.id}`);
+          if (!again[job.id]) {
+            throw new Error(
+              'ComfyUI stopped working on this image (it was restarted, or the job was cancelled). Press Generate to try again.'
+            );
+          }
+        }
+      }
     }
-
-    const image = entry.outputs?.[outputNode]?.images?.[0];
-    if (image) {
-      const query = new URLSearchParams({
-        filename: image.filename,
-        subfolder: image.subfolder || '',
-        type: image.type || 'output',
-      });
-      return `${comfyUrl()}/view?${query.toString()}`;
-    }
+    cancelComfyJob(job);
+    throw new Error(
+      'Image generation took longer than 40 minutes and was stopped. Plug in the laptop running the AI and close other heavy apps, then try again.'
+    );
+  } catch (error) {
+    if (!job.cancelled && !(error instanceof JobCancelled)) cancelComfyJob(job);
+    throw error;
+  } finally {
+    job.done = true;
   }
-
-  throw new Error(
-    'Image generation took longer than 10 minutes and was stopped. Close other apps to free up memory and try again.'
-  );
 }
 
 // size: optional { width, height } (multiples of 16); defaults to the
-// platform's post size.
-export async function generateImage({ imagePrompt, platform, size }) {
+// platform's post size. onSlow is called once if the image is taking much
+// longer than usual (laptop on battery, or short of memory).
+export async function generateImage({ imagePrompt, platform, size, onSlow }) {
   const { width, height } = size || IMAGE_SIZES[platform] || IMAGE_SIZES.Instagram;
   const seed = Math.floor(Math.random() * 2 ** 32);
-  const uri = await runComfyWorkflow(buildImageWorkflow({ imagePrompt, width, height, seed }), '11');
+  const uri = await runComfyWorkflow(buildImageWorkflow({ imagePrompt, width, height, seed }), '11', { onSlow });
   return { uri, width, height };
 }
 

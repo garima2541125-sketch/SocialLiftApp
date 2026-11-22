@@ -87,7 +87,7 @@ export async function composePost({
 
   if (plan.postType === 'general' && !slotImages.postImage) {
     onStep?.('image');
-    const generated = await generateImage({ imagePrompt: plan.imagePrompt, platform });
+    const generated = await generateImage({ imagePrompt: plan.imagePrompt, platform, onSlow: () => onStep?.('slow') });
     slotImages.postImage = generated.uri;
   }
 

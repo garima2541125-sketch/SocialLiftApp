@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DashboardShell from './DashboardShell';
 import { ScaledTemplate, getTemplate } from './templates';
 import { composePost } from '../../src/ai/composePost';
+import { aiServer } from '../../src/ai/aiServer';
 import { buildPostTypes, isReferenceType } from '../../src/ai/postTypes';
 import { useBrandKit } from '../../src/context/BrandKitContext';
 import { showAlert } from '../../src/utils/alert';
@@ -318,6 +319,17 @@ export default function CreatePostScreen() {
   const templateRef = useRef(null);
 
   const [generationStep, setGenerationStep] = useState('planning');
+  // True when this computer runs the AI itself and is on battery (web only):
+  // that's the usual reason an image is slow.
+  const [onBattery, setOnBattery] = useState(false);
+  useEffect(() => {
+    if (generationStep !== 'slow' || aiServer().shared) return;
+    if (typeof navigator === 'undefined' || !navigator.getBattery) return;
+    navigator
+      .getBattery()
+      .then((battery) => setOnBattery(!battery.charging))
+      .catch(() => {});
+  }, [generationStep]);
   const generationRun = useRef(0);
 
   const [imgBrightness, setImgBrightness] = useState(100);
@@ -1526,6 +1538,10 @@ export default function CreatePostScreen() {
                   'Checking the heading and name are spelt right…'
                 ) : generationStep === 'photo' ? (
                   'Placing the photo…'
+                ) : generationStep === 'slow' ? (
+                  onBattery
+                    ? 'Still drawing, slowly: this laptop is running on battery, which makes the GPU up to 8× slower. Plug it in and the rest goes much faster. Keep this page open.'
+                    : 'Still drawing — this is taking longer than usual. If the laptop running the AI is on battery, plug it in (the GPU runs up to 8× slower on battery). Keep this page open.'
                 ) : generationStep === 'image' ? (
                   Object.keys(postTypes).some(isReferenceType)
                     ? 'Drawing your post from scratch in your design style — a minute or two.'
