@@ -315,7 +315,7 @@ function findCloudflared() {
 
 const COMFY_DIR = process.env.COMFYUI_DIR || path.join(os.homedir(), 'ComfyUI');
 const COMFY_MEMORY_LIMIT_GB = Number(process.env.COMFY_MEMORY_LIMIT_GB || 10);
-const IDLE_BEFORE_RESTART_MS = 2 * 60 * 1000;
+const IDLE_BEFORE_RESTART_MS = 3 * 60 * 1000;
 let lastAiActivity = 0;
 let comfyChild = null;
 let restarting = false;
@@ -360,14 +360,38 @@ function comfyMemoryGb() {
   return Number(ps.stdout.trim() || 0) / 1024 ** 3;
 }
 
+// Newest file ComfyUI saved (output) or was sent (input): its last job, even
+// one from a browser talking to ComfyUI directly rather than through here.
+function lastComfyFileTime() {
+  let newest = 0;
+  for (const dir of ['output', 'input']) {
+    try {
+      for (const name of fs.readdirSync(path.join(COMFY_DIR, dir))) {
+        newest = Math.max(newest, fs.statSync(path.join(COMFY_DIR, dir, name)).mtimeMs);
+      }
+    } catch {
+      // folder missing
+    }
+  }
+  return newest;
+}
+
+// Idle = nothing queued or loaded now, and no job or request for a while:
+// a post keeps using an image for a few minutes after ComfyUI makes it.
+let lastBusySeen = 0;
 async function aiIdle() {
   try {
     const queue = await (await fetch('http://127.0.0.1:8188/queue')).json();
     const ps = await (await fetch('http://127.0.0.1:11434/api/ps')).json();
-    return queue.queue_running.length + queue.queue_pending.length === 0 && !(ps.models || []).length;
+    if (queue.queue_running.length + queue.queue_pending.length || (ps.models || []).length) {
+      lastBusySeen = Date.now();
+      return false;
+    }
   } catch {
     return false;
   }
+  const lastActivity = Math.max(lastAiActivity, lastBusySeen, lastComfyFileTime());
+  return Date.now() - lastActivity > IDLE_BEFORE_RESTART_MS;
 }
 
 async function watchComfy() {
@@ -378,7 +402,7 @@ async function watchComfy() {
     console.warn(`  ! ComfyUI is using ${gb.toFixed(0)} GB and will be slow. Close it; share-ai then starts and looks after it.`);
     return;
   }
-  if (Date.now() - lastAiActivity < IDLE_BEFORE_RESTART_MS || !(await aiIdle())) return;
+  if (!(await aiIdle())) return;
   restarting = true;
   console.log(`[${new Date().toLocaleTimeString()}] ComfyUI grew to ${gb.toFixed(0)} GB — restarting it to keep images fast...`);
   spawnSync('taskkill', ['/PID', String(comfyChild.pid), '/T', '/F']);
@@ -422,7 +446,7 @@ async function main() {
   } else {
     console.log('ComfyUI is already running (started elsewhere): memory is watched, but it can only be restarted by you.');
   }
-  setInterval(() => watchComfy().catch(() => {}), 60 * 1000);
+  setInterval(() => watchComfy().catch(() => {}), 20 * 1000);
   await checkInstagram();
 
   await new Promise((resolve, reject) => {

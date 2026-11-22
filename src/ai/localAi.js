@@ -594,7 +594,9 @@ async function pollComfyWorkflow(workflow, outputNode, onSlow) {
           subfolder: image.subfolder || '',
           type: image.type || 'output',
         });
-        return `${comfyUrl()}/view?${query.toString()}`;
+        // Downloaded straight away, so later steps don't depend on ComfyUI
+        // staying up (share-ai restarts it when its memory has grown).
+        return downloadAsDataUri(`${comfyUrl()}/view?${query.toString()}`);
       }
       if (entry) continue; // finished without an image yet: history catches up next poll
 
@@ -694,14 +696,35 @@ export async function segmentImage({ uri, prompt, threshold = 0.4 }) {
   }
 }
 
-async function toBase64(uri) {
-  const blob = await (await fetch(uri)).blob();
-  const dataUri = await new Promise((resolve, reject) => {
+function blobToDataUri(blob) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Could not read the redrawn image.'));
     reader.readAsDataURL(blob);
   });
+}
+
+// A finished image as a data: URI. Retried for about a minute, in case
+// ComfyUI is briefly down (restarting) just as the image is fetched.
+async function downloadAsDataUri(url) {
+  for (let attempt = 1; attempt <= 20; attempt += 1) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size) return blobToDataUri(blob);
+      }
+    } catch {
+      // not reachable yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  throw new Error('Could not download the finished image from the AI laptop. Press Generate to try again.');
+}
+
+async function toBase64(uri) {
+  const dataUri = uri.startsWith('data:') ? uri : await blobToDataUri(await (await fetch(uri)).blob());
   return dataUri.slice(dataUri.indexOf(',') + 1);
 }
 
