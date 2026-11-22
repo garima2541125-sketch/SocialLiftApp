@@ -162,6 +162,19 @@ This only works in a browser on the same laptop that runs them. There are no API
    device, click **Allow**. If you clicked Block, re-enable it from the site settings
    (the icon left of the address bar).
 
+## Keeping it fast
+
+- **Keep the laptop on its charger, and check that it says "Plugged in, charging".** On battery, or
+  with a charger that can't keep up, the CPU and GPU are held back and an image takes 7–10 minutes
+  instead of about 2. In NitroSense choose **Performance**, and in Windows Settings → Power choose
+  **Best performance**.
+- `npm run share-ai` starts ComfyUI itself if it isn't running, and restarts it automatically
+  (about 20 s, only while idle) when its memory grows past 10 GB. ComfyUI's memory grows with every
+  image, and past the laptop's 16 GB everything slows down. If you started ComfyUI yourself,
+  close it and let share-ai start it.
+- Posts take turns on the GPU. If someone else is generating, the app shows "Waiting for the AI
+  laptop" and starts yours as soon as it's free.
+
 ## Sharing your laptop's AI with teammates
 
 Teammates without a suitable GPU can generate on the live site using your laptop's

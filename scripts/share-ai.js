@@ -28,6 +28,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
@@ -281,6 +282,7 @@ const server = http.createServer((req, res) => {
     if (!res.writableEnded) forward.destroy();
   });
   req.pipe(forward);
+  lastAiActivity = Date.now();
 
   const time = new Date().toLocaleTimeString();
   if (req.method === 'POST' && /\/(prompt|api\/chat)$/.test(req.url)) {
@@ -302,6 +304,90 @@ function findCloudflared() {
   return which.status === 0 ? which.stdout.split(/\r?\n/)[0].trim() : null;
 }
 
+// =========================
+// COMFYUI WATCHDOG
+// ComfyUI's memory grows with every image (it reached 30 GB on this 16 GB
+// laptop after ~20 images), and then Windows pages to disk and each image
+// takes 8-10 minutes instead of ~2. If ComfyUI isn't already running, it is
+// started here with the right flags, and restarted (about 20 s) whenever it
+// is idle and has grown past COMFY_MEMORY_LIMIT_GB.
+// =========================
+
+const COMFY_DIR = process.env.COMFYUI_DIR || path.join(os.homedir(), 'ComfyUI');
+const COMFY_MEMORY_LIMIT_GB = Number(process.env.COMFY_MEMORY_LIMIT_GB || 10);
+const IDLE_BEFORE_RESTART_MS = 2 * 60 * 1000;
+let lastAiActivity = 0;
+let comfyChild = null;
+let restarting = false;
+
+function startComfy() {
+  const log = fs.openSync(path.join(COMFY_DIR, 'user', 'sociallift-comfyui.log'), 'a');
+  comfyChild = spawn(
+    path.join(COMFY_DIR, 'venv', 'Scripts', 'python.exe'),
+    ['main.py', '--lowvram', '--fast-disk', '--disable-pinned-memory', '--listen', '127.0.0.1', '--enable-cors-header', SITE],
+    { cwd: COMFY_DIR, stdio: ['ignore', log, log], windowsHide: true }
+  );
+  comfyChild.on('exit', () => {
+    comfyChild = null;
+  });
+}
+
+async function waitForComfy(timeoutMs = 180000) {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    try {
+      if ((await fetch('http://127.0.0.1:8188/system_stats')).ok) return true;
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return false;
+}
+
+// Private memory (GB) of every ComfyUI process (the venv launcher starts the
+// real python as a child, so both are counted).
+function comfyMemoryGb() {
+  const ps = spawnSync(
+    'powershell',
+    [
+      '-NoProfile',
+      '-Command',
+      "(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -match 'main\\.py' -and $_.CommandLine -match '--fast-disk' } | Measure-Object PrivatePageCount -Sum).Sum",
+    ],
+    { encoding: 'utf8' }
+  );
+  return Number(ps.stdout.trim() || 0) / 1024 ** 3;
+}
+
+async function aiIdle() {
+  try {
+    const queue = await (await fetch('http://127.0.0.1:8188/queue')).json();
+    const ps = await (await fetch('http://127.0.0.1:11434/api/ps')).json();
+    return queue.queue_running.length + queue.queue_pending.length === 0 && !(ps.models || []).length;
+  } catch {
+    return false;
+  }
+}
+
+async function watchComfy() {
+  if (restarting || process.platform !== 'win32') return;
+  const gb = comfyMemoryGb();
+  if (gb < COMFY_MEMORY_LIMIT_GB) return;
+  if (!comfyChild) {
+    console.warn(`  ! ComfyUI is using ${gb.toFixed(0)} GB and will be slow. Close it; share-ai then starts and looks after it.`);
+    return;
+  }
+  if (Date.now() - lastAiActivity < IDLE_BEFORE_RESTART_MS || !(await aiIdle())) return;
+  restarting = true;
+  console.log(`[${new Date().toLocaleTimeString()}] ComfyUI grew to ${gb.toFixed(0)} GB — restarting it to keep images fast...`);
+  spawnSync('taskkill', ['/PID', String(comfyChild.pid), '/T', '/F']);
+  startComfy();
+  const ok = await waitForComfy();
+  console.log(`[${new Date().toLocaleTimeString()}] ComfyUI ${ok ? 'restarted' : 'did not come back — check the log in ComfyUI/user/sociallift-comfyui.log'}`);
+  restarting = false;
+}
+
 async function checkLocal(name, url) {
   try {
     await fetch(url);
@@ -321,7 +407,22 @@ async function main() {
 
   console.log('Checking the local AI servers...');
   await checkLocal('Ollama', 'http://127.0.0.1:11434/api/tags');
-  await checkLocal('ComfyUI', 'http://127.0.0.1:8188/system_stats');
+  let comfyRunning = false;
+  try {
+    comfyRunning = (await fetch('http://127.0.0.1:8188/system_stats')).ok;
+  } catch {
+    // not running
+  }
+  if (!comfyRunning && fs.existsSync(path.join(COMFY_DIR, 'main.py'))) {
+    console.log('Starting ComfyUI (about 20 s; its log is in ComfyUI/user/sociallift-comfyui.log)...');
+    startComfy();
+    if (!(await waitForComfy())) console.warn('  ! ComfyUI did not start. Check its log.');
+  } else if (!comfyRunning) {
+    await checkLocal('ComfyUI', 'http://127.0.0.1:8188/system_stats');
+  } else {
+    console.log('ComfyUI is already running (started elsewhere): memory is watched, but it can only be restarted by you.');
+  }
+  setInterval(() => watchComfy().catch(() => {}), 60 * 1000);
   await checkInstagram();
 
   await new Promise((resolve, reject) => {
@@ -369,6 +470,7 @@ async function main() {
 
   const stop = () => {
     console.log('\nStopping sharing...');
+    if (comfyChild) spawnSync('taskkill', ['/PID', String(comfyChild.pid), '/T', '/F']);
     tunnel.kill();
     server.close();
     process.exit(0);
