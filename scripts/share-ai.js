@@ -543,6 +543,7 @@ async function main() {
   let stopping = false;
   let failures = 0;
   let opening = false;
+  let retryDelay = 30 * 1000;
 
   const announce = (url) => {
     const server = `${url}/${KEY}`;
@@ -576,9 +577,12 @@ async function main() {
     tunnel = child;
     let announced = false;
     const onOutput = (chunk) => {
-      const match = !announced && String(chunk).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      // A real tunnel address, never api.trycloudflare.com (which appears in
+      // cloudflared's error messages when Cloudflare refuses a new tunnel).
+      const match = !announced && String(chunk).match(/https:\/\/(?!api\.)[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com/);
       if (!match) return;
       announced = true;
+      retryDelay = 30 * 1000;
       // Give Cloudflare a few seconds to route the new address before checking it.
       setTimeout(() => {
         opening = false;
@@ -589,8 +593,16 @@ async function main() {
     child.stderr.on('data', onOutput);
     child.on('exit', (code) => {
       if (stopping || child !== tunnel) return;
-      console.error(`[${new Date().toLocaleTimeString()}] The Cloudflare tunnel stopped (exit code ${code}) — reopening it with a new link...`);
-      openTunnel();
+      // Wait before asking Cloudflare again (30 s, doubling to 10 min):
+      // retrying straight away floods it, and it then refuses for a while.
+      const wait = retryDelay;
+      retryDelay = Math.min(retryDelay * 2, 10 * 60 * 1000);
+      console.error(
+        `[${new Date().toLocaleTimeString()}] The Cloudflare tunnel stopped (exit code ${code}) — trying again in ${Math.round(wait / 1000)} s...`
+      );
+      setTimeout(() => {
+        if (!stopping && child === tunnel) openTunnel();
+      }, wait);
     });
   };
 
