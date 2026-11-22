@@ -253,9 +253,9 @@ export default function CreatePostScreen() {
 
   const [platform, setPlatform] = useState('Instagram');
 
-  const [prompt, setPrompt] = useState(
-    'Announce our new autumn ceramics collection — warm, handmade, small-batch. Highlight the earthy glaze finishes.'
-  );
+  // Starts empty: pre-filled demo text got sent along with whatever was
+  // typed after it. The placeholder shows an example instead.
+  const [prompt, setPrompt] = useState('');
 
   const [tone, setTone] = useState(TONE_OPTIONS[0]);
   const [customTone, setCustomTone] = useState('');
