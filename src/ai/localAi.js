@@ -376,8 +376,9 @@ export async function planPost({ prompt, tone, platform, analyses = [], postType
     `"caption" is the finished post text in a ${tone.toLowerCase()} voice, using only facts from the request, ` +
     'with a few relevant hashtags at the end' +
     (platform === 'LinkedIn' ? ' (2-3 at most, professional)' : '') +
-    '. "imagePrompt" is a vivid one-paragraph description of a photo to go with the post, for an image ' +
-    'generator (subject, setting, lighting, composition, style), with no text, words or logos in it.';
+    '. "imagePrompt" is a short description of the picture for the post, for an image generator (subject, ' +
+    'setting, motifs, lighting, colours; e.g. diyas, rangoli and fireworks for Diwali), with no people or ' +
+    'faces unless the request asks for them, and no text, words or logos.';
 
   const user = `Request: ${prompt}\n\nUploaded images:\n${describeImages(analyses)}`;
 

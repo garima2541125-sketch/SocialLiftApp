@@ -20,7 +20,14 @@ export const LIVE_STAT_META = [
 
 const engagement = (p) => p.likes + p.comments;
 const sum = (posts, f) => posts.reduce((n, p) => n + f(p), 0);
-const fmt = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}K` : `${Math.round(n)}`);
+const fmt = (n) =>
+  n >= 1e6
+    ? `${(n / 1e6).toFixed(1)}M`
+    : n >= 1e4
+      ? `${(n / 1e3).toFixed(1)}K`
+      : n < 10 && !Number.isInteger(n)
+        ? n.toFixed(1)
+        : `${Math.round(n)}`;
 const hourLabel = (h) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
 
 function delta(now, before, unit = '') {

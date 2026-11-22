@@ -98,12 +98,15 @@ const NOT_FOR_THE_AI = /logo|emblem|crest|seal|contact|phone|website|e-?mail|ico
 // (Single quotes only count when they enclose words, so "it's" survives.)
 const DOUBLE_QUOTED = /["“][^"“”]{1,80}["”]/g;
 const SINGLE_QUOTED = /(^|[\s(])['‘][^'’]{1,80}['’](?=[\s.,;:!?)]|$)/g;
-const bodyStyle = (style = '') =>
+// Without a real photo, anything about photos or people goes too: the model
+// would otherwise draw a made-up person in the frame.
+const ABOUT_PEOPLE = /photo|portrait|frame|person|people|face|student|alumn|man\b|woman|girl|boy/i;
+const bodyStyle = (style = '', withPhoto = true) =>
   style
     .replace(DOUBLE_QUOTED, '')
     .replace(SINGLE_QUOTED, '$1')
     .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => !NOT_FOR_THE_AI.test(sentence))
+    .filter((sentence) => !NOT_FOR_THE_AI.test(sentence) && (withPhoto || !ABOUT_PEOPLE.test(sentence)))
     .join(' ')
     .replace(/\s{2,}/g, ' ');
 
@@ -117,6 +120,7 @@ function buildPrompt(info, fields, imagePrompt, side, photoStyle) {
     fields.personRole && `under the name, "${fields.personRole}"`,
     fields.details && `short lines of key details: "${fields.details}"`,
     fields.callToAction && `towards the bottom, in a rounded banner, "${fields.callToAction}"`,
+    fields.signOff && `near the bottom, small, "${fields.signOff}"`,
   ].filter(Boolean);
   const colours = [...new Set((info.palette || []).map(colourName))];
 
@@ -125,7 +129,7 @@ function buildPrompt(info, fields, imagePrompt, side, photoStyle) {
   return (
     'A brand-new social media post graphic in portrait format: a flat, full-bleed design that fills ' +
     'the entire canvas edge to edge — not a mockup, no frame, border or background around it. ' +
-    `Style: ${bodyStyle(info.style)} ` +
+    `Style: ${bodyStyle(info.style, Boolean(side))} ` +
     (colours.length ? `Colours: ${colours.join(', ')}. ` : '') +
     'Across the very top, a plain light header bar that is completely empty. ' +
     'Across the very bottom, a plain dark footer bar that is completely empty. ' +
@@ -135,7 +139,8 @@ function buildPrompt(info, fields, imagePrompt, side, photoStyle) {
         'of that half, with no person, picture or text inside it — a photo will be placed there later. ' +
         'All the text sits in the other half, and every line of text ends well before the frame; keep the name ' +
         'and details at a moderate size so each line fits in its half. '
-      : `Imagery: ${imagePrompt} `) +
+      : `Decoration only, as artwork around the text: ${imagePrompt} ` +
+        'No people, faces, portraits, photos or photo frames anywhere in the design. ') +
     'Write each of those texts exactly once, spelt exactly as given, and no other text anywhere: no contact ' +
     'details, no website, no phone numbers, no labels, no numbers or codes, no rows of icons, no logos, ' +
     'emblems, seals or crests. Clean, professional, generous spacing.'
@@ -287,6 +292,7 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
     fields.personRole,
     ...String(fields.details || '').split('·'),
     fields.callToAction,
+    fields.signOff,
   ]
     .map((t) => String(t || '').trim())
     .filter(Boolean);

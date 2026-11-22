@@ -71,7 +71,9 @@ const DESIGN_FIELDS = {
   details:
     'up to 3 short key facts from the request (dates, eligibility, venue, batch…) that are NOT already in the ' +
     'name or role, separated by " · ", or ""',
-  callToAction: 'a short call to action or closing line, e.g. "Apply now" or "Your achievements inspire us all", or ""',
+  callToAction:
+    'a short call to action, only when the request is something people can act on, e.g. "Apply now" or ' +
+    '"Register today", else ""',
 };
 
 // The heading printed on the reference: saved with its design notes, or for
@@ -90,12 +92,14 @@ function designType(ref) {
   return {
     label: ref.label,
     classify:
-      `${ref.label} — and any other kind of post (admissions, events, greetings, achievements…) when none of ` +
-      "this account's other designs fits better; drawn fresh in this account's own style",
+      `${ref.label} — and other announcements (admissions, events, achievements…) when none of this account's ` +
+      'other designs fits better; NOT festival or occasion greetings and wishes; drawn fresh in this account\'s own style',
     fields: heading
       ? {
           ...DESIGN_FIELDS,
-          headline: `the main heading. This design's own heading is "${heading}": use exactly that, unless the request asks for different wording`,
+          headline:
+            `the main heading. For ${ref.label} posts use exactly "${heading}" (unless the request asks for other ` +
+            'wording); for any other kind of post, a short heading that fits what the post is about',
         }
       : DESIGN_FIELDS,
     creativeFields: ['headline', 'subheadline', 'details', 'callToAction'],
@@ -109,6 +113,46 @@ function designType(ref) {
   };
 }
 
+// Festival and occasion wishes (Diwali, New Year…): a simple greeting card in
+// the account's colours and heading lettering, with its logo, name and
+// contact details added as usual, but none of a reference's layout, photo
+// frame or "Congratulations".
+function greetingType(ref) {
+  const info = ref.styleInfo || {};
+  return {
+    label: 'Festival / occasion greeting',
+    classify:
+      'festival and occasion greetings and wishes (Diwali, Holi, Eid, Christmas, New Year, Independence Day, ' +
+      "Republic Day, Teachers' Day, birthdays, condolences…), where nobody is being congratulated for an achievement",
+    fields: {
+      headline: 'the greeting itself, short, e.g. "Happy Diwali" or "Happy New Year 2027"',
+      subheadline: 'one short, warm wish for the occasion, at most 15 words',
+      signOff: 'who the wish is from, only if the request says, else ""',
+    },
+    creativeFields: ['headline', 'subheadline'],
+    requiredFields: ['headline'],
+    requiredImages: [],
+    imageSlots: {},
+    designReference: {
+      ...ref,
+      id: `${ref.id}-greeting`,
+      label: 'Festival / occasion greeting',
+      styleInfo: {
+        category: 'Festival / occasion greeting',
+        style:
+          'A simple, elegant festive greeting card. A soft gradient background in the brand colours, with ' +
+          'decorations for the occasion around the edges. The greeting large and centred, one short wish ' +
+          'line under it, and plenty of empty space. Calm, warm and uncluttered.',
+        headingText: '',
+        headingStyle: info.headingStyle || 'large elegant script',
+        palette: info.palette || [],
+        photoStyle: 'none',
+        photoSide: 'center',
+      },
+    },
+  };
+}
+
 export function buildPostTypes(references = []) {
   const types = { ...POST_TYPES };
   references.forEach((ref) => {
@@ -116,10 +160,11 @@ export function buildPostTypes(references = []) {
   });
 
   // With the account's own designs, never fall back to a plain AI photo or
-  // the built-in poster.
+  // the built-in poster; greetings get a simple card in the same colours.
   if (references.length) {
     delete types.general;
     delete types.placement;
+    types.greeting = greetingType(references[0]);
   }
   return types;
 }
