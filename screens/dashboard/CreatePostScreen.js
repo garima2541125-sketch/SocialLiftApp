@@ -18,6 +18,8 @@ import DashboardShell from './DashboardShell';
 import { ScaledTemplate, getTemplate } from './templates';
 import { composePost } from '../../src/ai/composePost';
 import { aiServer } from '../../src/ai/aiServer';
+import { getInstagramStatus, publishToInstagram } from '../../src/ai/instagram';
+import { useAuth } from '../../src/context/AuthContext';
 import { buildPostTypes, isReferenceType } from '../../src/ai/postTypes';
 import { useBrandKit } from '../../src/context/BrandKitContext';
 import { showAlert } from '../../src/utils/alert';
@@ -319,6 +321,14 @@ export default function CreatePostScreen() {
   const templateRef = useRef(null);
 
   const [generationStep, setGenerationStep] = useState('planning');
+  const { getToken } = useAuth();
+  // Instagram posting: offered only when the shared AI laptop has it set up
+  // for this account (the laptop checks the account when posting).
+  const [igStatus, setIgStatus] = useState({ enabled: false, username: '' });
+  const [igPosting, setIgPosting] = useState(false);
+  useEffect(() => {
+    if (modalStage === 'preview') getInstagramStatus().then(setIgStatus);
+  }, [modalStage]);
   // True when this computer runs the AI itself and is on battery (web only):
   // that's the usual reason an image is slow.
   const [onBattery, setOnBattery] = useState(false);
@@ -643,6 +653,34 @@ export default function CreatePostScreen() {
   /* -----------------------------------------------------
      PUBLISH
   ----------------------------------------------------- */
+
+  /* -----------------------------------------------------
+     POST TO INSTAGRAM (through the AI laptop, see src/ai/instagram.js)
+  ----------------------------------------------------- */
+
+  const handlePostToInstagram = async () => {
+    if (!postImageUri || igPosting) return;
+    const ok = window.confirm(
+      `Post this to Instagram as @${igStatus.username} now?\n\nIt goes live straight away, with the caption shown here.`
+    );
+    if (!ok) return;
+    setIgPosting(true);
+    try {
+      const url = await publishToInstagram({
+        imageUri: postImageUri,
+        caption: generatedCaption,
+        idToken: await getToken(),
+      });
+      handlePublish();
+      if (window.confirm(`Posted to Instagram as @${igStatus.username}.\n\nOpen the post?`)) {
+        window.open(url, '_blank', 'noopener');
+      }
+    } catch (error) {
+      showAlert('Could not post to Instagram', error?.message || 'Something went wrong.');
+    } finally {
+      setIgPosting(false);
+    }
+  };
 
   const handlePublish = () => {
     setRecent((prev) =>
@@ -1929,6 +1967,21 @@ export default function CreatePostScreen() {
                     {downloading
                       ? 'Preparing PNG…'
                       : '⬇  Download poster (PNG)'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {isDesigned && Platform.OS === 'web' && igStatus.enabled && (
+                <TouchableOpacity
+                  style={styles.modalDownloadBtn}
+                  onPress={handlePostToInstagram}
+                  activeOpacity={0.88}
+                  disabled={igPosting}
+                >
+                  <Text style={styles.modalDownloadBtnText}>
+                    {igPosting
+                      ? 'Posting to Instagram… (up to a minute)'
+                      : `📸  Post to Instagram (@${igStatus.username})`}
                   </Text>
                 </TouchableOpacity>
               )}

@@ -13,6 +13,14 @@
 // 3. Prints the link to send to teammates. Opening it once in their browser
 //    points the app at your laptop (see src/ai/aiServer.js).
 //
+// Instagram (optional): with IG_USER_ID, IG_ACCESS_TOKEN and
+// SHARE_AI_INSTAGRAM_UIDS in .env.local (git-ignored), the signed-in accounts
+// listed there can publish a finished post from the app:
+//      GET  /<key>/instagram/status    -> { enabled, username }
+//      POST /<key>/instagram/publish   (Firebase ID token in Authorization)
+//      GET  /<key>/media/<id>.jpg      the poster, for Instagram to fetch
+// The token never leaves this laptop.
+//
 // Keep this window open while others generate. Ctrl+C stops sharing.
 // Needs cloudflared: `winget install Cloudflare.cloudflared`, or the single-file
 // cloudflared-windows-amd64.exe saved as %LOCALAPPDATA%\cloudflared\cloudflared.exe.
@@ -22,6 +30,17 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+
+// .env.local holds this laptop's own secrets (Instagram token); values
+// already set in the environment win.
+function loadEnvFile(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
+loadEnvFile(path.join(__dirname, '..', '.env.local'));
 
 const PROXY_PORT = Number(process.env.SHARE_AI_PORT || 8790);
 const SITE = process.env.SHARE_AI_SITE || 'https://social-lift-app.vercel.app';
@@ -44,7 +63,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '600',
     Vary: 'Origin',
   };
@@ -56,13 +75,153 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
+// =========================
+// INSTAGRAM
+// =========================
+
+const IG = {
+  userId: process.env.IG_USER_ID || '',
+  token: process.env.IG_ACCESS_TOKEN || '',
+  uids: new Set((process.env.SHARE_AI_INSTAGRAM_UIDS || '').split(',').map((s) => s.trim()).filter(Boolean)),
+  project: process.env.FIREBASE_PROJECT_ID || 'social-lift-2',
+  username: '',
+};
+const GRAPH = 'https://graph.facebook.com/v21.0';
+// This proxy's public address (tunnel URL + key), set once the tunnel is up:
+// Instagram fetches the poster from it.
+let publicBase = '';
+// Posters waiting for Instagram to fetch them, kept for an hour.
+const media = new Map();
+const MEDIA_TTL_MS = 60 * 60 * 1000;
+const MAX_BODY_BYTES = 20 * 1024 * 1024;
+
+async function graph(pathAndQuery, form) {
+  const res = await fetch(`${GRAPH}/${pathAndQuery}`, form
+    ? { method: 'POST', body: new URLSearchParams({ ...form, access_token: IG.token }) }
+    : undefined);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.error_user_msg || data.error.message || 'Instagram refused the request');
+  return data;
+}
+
+async function checkInstagram() {
+  if (!IG.userId || !IG.token || !IG.uids.size) return;
+  try {
+    const me = await graph(`${IG.userId}?fields=username&access_token=${encodeURIComponent(IG.token)}`);
+    IG.username = me.username;
+  } catch (error) {
+    console.warn(`  ! Instagram token not working: ${error.message}`);
+  }
+}
+
+// Firebase ID tokens are RS256 JWTs signed with Google's keys; checked here
+// with no extra packages. Returns the account's uid, or throws.
+let googleCerts = { at: 0, certs: {} };
+async function verifyFirebaseToken(token) {
+  const [h, p, s] = String(token || '').split('.');
+  let header;
+  let payload;
+  try {
+    header = JSON.parse(Buffer.from(h, 'base64url').toString());
+    payload = JSON.parse(Buffer.from(p, 'base64url').toString());
+  } catch {
+    throw new Error('Sign in again and retry.');
+  }
+  if (Date.now() - googleCerts.at > 60 * 60 * 1000 || !googleCerts.certs[header.kid]) {
+    const res = await fetch('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+    googleCerts = { at: Date.now(), certs: await res.json() };
+  }
+  const cert = googleCerts.certs[header.kid];
+  const now = Date.now() / 1000;
+  const valid =
+    header.alg === 'RS256' &&
+    cert &&
+    crypto.createVerify('RSA-SHA256').update(`${h}.${p}`).verify(cert, Buffer.from(s, 'base64url')) &&
+    payload.aud === IG.project &&
+    payload.iss === `https://securetoken.google.com/${IG.project}` &&
+    payload.exp > now &&
+    payload.iat < now + 300 &&
+    payload.sub;
+  if (!valid) throw new Error('Sign in again and retry.');
+  return payload.sub;
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error('The poster is too large.'));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+async function publishToInstagram(req) {
+  const uid = await verifyFirebaseToken((req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  if (!IG.uids.has(uid)) throw new Error('This account is not allowed to post to Instagram.');
+  // dryRun: everything up to the post being ready, without publishing it
+  // (for testing; an unpublished container expires after 24 hours).
+  const { image, caption, dryRun } = JSON.parse(await readBody(req));
+  const m = /^data:image\/jpeg;base64,(.+)$/.exec(image || '');
+  if (!m) throw new Error('The poster must be a JPEG.');
+
+  const id = crypto.randomBytes(12).toString('hex');
+  media.set(id, { jpeg: Buffer.from(m[1], 'base64'), at: Date.now() });
+  const imageUrl = `${publicBase}/media/${id}.jpg`;
+
+  // Instagram fetches the image, processes it, then it can be published.
+  const container = await graph(`${IG.userId}/media`, { image_url: imageUrl, caption: String(caption || '').slice(0, 2200) });
+  for (let i = 0; i < 30; i += 1) {
+    const { status_code: status } = await graph(`${container.id}?fields=status_code&access_token=${encodeURIComponent(IG.token)}`);
+    if (status === 'FINISHED') break;
+    if (status === 'ERROR' || status === 'EXPIRED') throw new Error('Instagram could not process the image.');
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (dryRun) return { ready: true, container: container.id };
+  const post = await graph(`${IG.userId}/media_publish`, { creation_id: container.id });
+  const { permalink } = await graph(`${post.id}?fields=permalink&access_token=${encodeURIComponent(IG.token)}`);
+  return { url: permalink };
+}
+
+async function handleInstagram(req, res, cors, action) {
+  const send = (status, body) =>
+    res.writeHead(status, { ...cors, 'Content-Type': 'application/json' }).end(JSON.stringify(body));
+  const enabled = Boolean(IG.username && publicBase);
+  if (action === 'status') return send(200, { enabled, username: IG.username });
+  if (action !== 'publish' || req.method !== 'POST') return send(404, { error: 'Not found' });
+  if (!enabled) return send(503, { error: 'Instagram posting is not set up on the sharing laptop.' });
+  try {
+    const result = await publishToInstagram(req);
+    console.log(`[${new Date().toLocaleTimeString()}] ${result.url ? `posted to Instagram: ${result.url}` : 'Instagram test: post ready, not published'}`);
+    return send(200, result);
+  } catch (error) {
+    console.warn(`[${new Date().toLocaleTimeString()}] Instagram post failed: ${error.message}`);
+    return send(400, { error: error.message });
+  }
+}
+
+function serveMedia(res, file) {
+  for (const [id, item] of media) if (Date.now() - item.at > MEDIA_TTL_MS) media.delete(id);
+  const item = media.get(String(file).replace(/\.jpg$/, ''));
+  if (!item) return res.writeHead(404).end();
+  return res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': item.jpeg.length }).end(item.jpeg);
+}
+
 const server = http.createServer((req, res) => {
   const origin = req.headers.origin || '';
   const cors = corsHeaders(origin);
-  const [, key = '', service = '', ...rest] = (req.url || '').split('/');
+  const [pathPart, query] = (req.url || '').split(/\?(.*)/s);
+  const [, key = '', service = '', ...rest] = pathPart.split('/');
   const upstream = UPSTREAMS[service];
+  const local = service === 'instagram' || service === 'media';
 
-  if (!safeEqual(key, KEY) || !upstream) {
+  if (!safeEqual(key, KEY) || (!upstream && !local)) {
     res.writeHead(404, cors).end();
     return;
   }
@@ -70,6 +229,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(204, cors).end();
     return;
   }
+  if (service === 'media') return serveMedia(res, rest[0]);
+  if (service === 'instagram') return handleInstagram(req, res, cors, rest[0]);
 
   const headers = {};
   for (const [name, value] of Object.entries(req.headers)) {
@@ -80,7 +241,7 @@ const server = http.createServer((req, res) => {
   headers.host = `${upstream.host}:${upstream.port}`;
 
   const forward = http.request(
-    { ...upstream, method: req.method, path: `/${rest.join('/')}`, headers },
+    { ...upstream, method: req.method, path: `/${rest.join('/')}${query ? `?${query}` : ''}`, headers },
     (upstreamRes) => {
       const out = {};
       for (const [name, value] of Object.entries(upstreamRes.headers)) {
@@ -138,6 +299,7 @@ async function main() {
   console.log('Checking the local AI servers...');
   await checkLocal('Ollama', 'http://127.0.0.1:11434/api/tags');
   await checkLocal('ComfyUI', 'http://127.0.0.1:8188/system_stats');
+  await checkInstagram();
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -155,6 +317,7 @@ async function main() {
     if (!match) return;
     announced = true;
     const server = `${match[0]}/${KEY}`;
+    publicBase = server;
     const link = `${SITE}/?ai=${encodeURIComponent(server)}`;
     console.log('\n================ SHARING IS ON ================');
     console.log('Send this link to your teammates (open it once, then use the site as normal):\n');
@@ -162,6 +325,11 @@ async function main() {
     console.log('It works only while this window stays open and the laptop is awake.');
     console.log('Each run makes a new link; the old one stops working.');
     console.log('To use their own computer again, they open:  ' + `${SITE}/?ai=local`);
+    console.log(
+      IG.username
+        ? `Instagram posting: ON, to @${IG.username}, for ${IG.uids.size} allowed account(s).`
+        : 'Instagram posting: off (no working IG_* settings in .env.local).'
+    );
     console.log('================================================\n');
     if (process.platform === 'win32') {
       spawnSync('clip', { input: link });

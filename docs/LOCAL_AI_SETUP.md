@@ -191,6 +191,25 @@ Things to know:
 - Your GPU makes one image at a time. If two people generate together, the second waits.
 - To go back to their own computer's AI, a teammate opens `https://social-lift-app.vercel.app/?ai=local`.
 
+## Posting to Instagram from the app
+
+`npm run share-ai` can also publish finished posts to one Instagram account. The token stays on
+the sharing laptop and is never part of the website.
+
+1. Create `.env.local` in this folder (git ignores it) with:
+   ```
+   IG_USER_ID=<Instagram business account id>
+   IG_ACCESS_TOKEN=<token with instagram_content_publish>
+   SHARE_AI_INSTAGRAM_UIDS=<Firebase uid of each Social Lift account allowed to post>
+   FIREBASE_PROJECT_ID=social-lift-2
+   ```
+2. Run `npm run share-ai`. It prints `Instagram posting: ON, to @<account>`.
+3. Open the printed link and sign in as an allowed account. A finished design then shows
+   **Post to Instagram (@account)**. It asks for confirmation, then posts the image and caption
+   straight away.
+
+Posters are padded to Instagram's 4:5 shape and sent as JPEG. Instagram allows 100 posts a day.
+
 ## Troubleshooting
 
 | Message | Fix |
