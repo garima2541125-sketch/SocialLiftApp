@@ -36,7 +36,7 @@ const INITIAL_APPROVALS = [
     author: 'Cultural Committee',
     platform: 'Instagram',
     submitted: 'Yesterday',
-    emoji: '🇮🇳',
+    emoji: '📜',
     caption:
       'On Constitution Day, JUET Guna honours the values that guide our nation: justice, liberty, equality and fraternity. #ConstitutionDay #JUETGuna',
     status: 'pending',

@@ -65,7 +65,7 @@ export default function OwnerOverviewScreen() {
         <StatCard
           label="Plan"
           value={`${plan.name} — $${plan.price}/mo`}
-          hint={`Renews Aug 12, 2026`}
+          hint={`Renews ${renewsOn}`}
           onPress={() => router.push('/owner/billing')}
         />
       </View>
