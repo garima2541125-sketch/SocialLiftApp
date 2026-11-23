@@ -6,14 +6,14 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 
 const POSTS_THIS_MONTH = 24;
-const PENDING_REVIEW = 2;
+const PENDING_REVIEW = 1;
 const APPROVED = 19;
 const NEEDS_CHANGES = 1;
 
 const RECENT_ACTIVITY = [
-  { id: 'r1', icon: '✅', text: 'Weekend studio hours post was approved & published', time: '2 hours ago' },
-  { id: 'r2', icon: '🕒', text: 'Behind the scenes: glaze mixing process is awaiting review', time: '5 hours ago' },
-  { id: 'r3', icon: '✏️', text: 'Owner requested changes on "New restock" post', time: 'Yesterday' },
+  { id: 'r1', icon: '🕒', text: 'Placement season 2026 post is awaiting review', time: '2 hours ago' },
+  { id: 'r2', icon: '📅', text: 'National Hackathon post is scheduled for Instagram', time: '5 hours ago' },
+  { id: 'r3', icon: '🎨', text: 'Brand Kit updated with the JUET logo, colours and contact details', time: 'Last week' },
 ];
 
 function StatCard({ label, value, hint, theme, onPress }) {

@@ -9,8 +9,8 @@ import {
   Pressable,
 } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
-import { getInstagramAnalytics } from "../../src/ai/instagram";
-import { LIVE_STAT_META, buildLiveRange, buildRecommendations } from "../../src/ai/instagramAnalytics";
+import { loadInstagramAccount } from "../../src/ai/instagram";
+import { LIVE_STAT_META, buildLiveRange, buildRecommendations, occasionIdea } from "../../src/ai/instagramAnalytics";
 import DashboardShell from "./DashboardShell";
 
 const DARK_TEXT = "#1A1A1A";
@@ -286,6 +286,15 @@ const RECOMMENDATIONS = [
   },
 ];
 
+// Demo deltas like "+4 vs last period" already say what they compare with.
+const deltaText = (stat) =>
+  stat.deltaNote || (/\bvs\b/.test(stat.delta) ? stat.delta : `${stat.delta} vs last period`);
+
+const syncedLabel = (t) =>
+  t
+    ? new Date(t).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+    : "earlier";
+
 /* ------------------------------------------------------------------ */
 
 export default function AnalyticsScreen() {
@@ -296,18 +305,31 @@ export default function AnalyticsScreen() {
 
   // Live Instagram numbers for accounts linked to Instagram on the AI laptop
   // (the JUET account); everyone else sees the demo figures below.
+  // When the sharing link is offline, the last copy saved to the account is
+  // shown instead, with the time it was synced.
   const { user, getToken } = useAuth();
   const [live, setLive] = useState(null);
+  const [igInfo, setIgInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     setLive(null);
-    if (!user) return undefined;
-    getToken()
-      .then(getInstagramAnalytics)
+    setIgInfo(null);
+    setLoading(true);
+    if (!user) {
+      setLoading(false);
+      return undefined;
+    }
+    loadInstagramAccount(user.uid, getToken)
       .then((result) => {
-        if (!cancelled) setLive(result);
+        if (cancelled) return;
+        setLive(result ? result.data : null);
+        setIgInfo(result);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -315,7 +337,10 @@ export default function AnalyticsScreen() {
 
   const data = useMemo(() => (live ? buildLiveRange(live, range) : RANGE_DATA[range]), [live, range]);
   const statMeta = live ? LIVE_STAT_META : STAT_META;
-  const recommendations = useMemo(() => (live ? buildRecommendations(live) : RECOMMENDATIONS), [live]);
+  const recommendations = useMemo(
+    () => (live ? buildRecommendations(live) : [RECOMMENDATIONS[0], occasionIdea(), RECOMMENDATIONS[2]]),
+    [live]
+  );
   const maxValue = useMemo(
     () => Math.max(...data.chart.values, 1),
     [data]
@@ -332,9 +357,13 @@ export default function AnalyticsScreen() {
         {/* Header row: subtitle + range selector */}
         <View style={styles.headerRow}>
           <Text style={styles.subtitle}>
-            {live
-              ? `Live from Instagram @${live.username}, ${data.rangeLabel}.`
-              : `Performance across Instagram & LinkedIn, ${data.rangeLabel}.`}
+            {loading
+              ? "Loading your Instagram analytics…"
+              : live
+                ? igInfo?.live
+                  ? `Live from Instagram @${live.username}, ${data.rangeLabel}.`
+                  : `Instagram @${live.username}, ${data.rangeLabel}. Last synced ${syncedLabel(igInfo?.savedAt)}.`
+                : `Performance across Instagram & LinkedIn, ${data.rangeLabel}.`}
           </Text>
           <View style={styles.rangeSelector}>
             {RANGE_OPTIONS.map((opt) => {
@@ -362,6 +391,14 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
+        {loading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>📊</Text>
+            <Text style={styles.emptyTitle}>Fetching your analytics</Text>
+            <Text style={styles.emptyBody}>Reading your latest posts, likes and comments from Instagram.</Text>
+          </View>
+        ) : (
+        <>
         {/* Stat cards */}
         <View style={styles.statsRow}>
           {statMeta.map((meta) => {
@@ -381,7 +418,7 @@ export default function AnalyticsScreen() {
                     { color: stat.deltaUp ? GREEN : RED },
                   ]}
                 >
-                  {stat.deltaNote || `${stat.delta} vs last period`}
+                  {deltaText(stat)}
                 </Text>
                 <Text style={styles.tapHint}>Tap for details ›</Text>
               </TouchableOpacity>
@@ -441,7 +478,7 @@ export default function AnalyticsScreen() {
           <View style={styles.recPanel}>
             <Text style={styles.recTitle}>Recommended next</Text>
             <Text style={styles.recSubtitle}>
-              {live ? "Based on your Instagram history." : "Based on your preferences + performance history."}
+              {live ? `Based on @${live.username}'s Instagram history.` : "Based on your preferences + performance history."}
             </Text>
 
             {recommendations.map((rec, idx) => (
@@ -458,6 +495,8 @@ export default function AnalyticsScreen() {
             ))}
           </View>
         </View>
+        </>
+        )}
       </ScrollView>
 
       {/* Stat detail modal */}
@@ -482,7 +521,7 @@ export default function AnalyticsScreen() {
                     { color: selectedStat.deltaUp ? GREEN : RED, marginBottom: 14 },
                   ]}
                 >
-                  {selectedStat.deltaNote || `${selectedStat.delta} vs last period`}
+                  {deltaText(selectedStat)}
                 </Text>
                 <Text style={styles.modalDetailText}>{selectedStat.detail}</Text>
 

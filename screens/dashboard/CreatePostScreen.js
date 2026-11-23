@@ -23,6 +23,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { buildPostTypes, isReferenceType } from '../../src/ai/postTypes';
 import { useBrandKit } from '../../src/context/BrandKitContext';
 import { showAlert } from '../../src/utils/alert';
+import { nextOccasion } from '../../src/ai/occasions';
 
 const PURPLE = '#6C5CE7';
 const DARK_TEXT = '#1A1A1A';
@@ -86,20 +87,30 @@ const ASPECT_OPTIONS = [
   { key: 'wide', label: 'Wide', ratio: 1.9 },
 ];
 
-const SUGGESTIONS = [
-  {
-    id: 's1',
-    text: 'Behind-the-scenes glaze-mixing reel — your reels get 3.2x more reach.',
-  },
-  {
-    id: 's2',
-    text: 'Customer testimonial carousel — carousels outperform single images by 40%.',
-  },
-  {
-    id: 's3',
-    text: 'Restock announcement for the bestselling mug set.',
-  },
-];
+// Ready-to-use prompts for a university page: the next day it usually marks,
+// a placement announcement and admissions. `org` is the short name used in
+// the prompt (JUET Guna for the JUET account).
+function buildSuggestions(org) {
+  const o = nextOccasion();
+  const swap = (text) => text.replace(/JUET Guna/g, org);
+  return [
+    {
+      id: 's1',
+      text: swap(o.prompt),
+      why: `${o.name} is ${o.when} (${o.date}). Greetings keep the page active between announcements.`,
+    },
+    {
+      id: 's2',
+      text: swap('Announcement post: campus placement drive at JUET Guna for final year B.Tech students. Register with the Training and Placement Cell.'),
+      why: 'Placement posts get the most shares from students, parents and alumni.',
+    },
+    {
+      id: 's3',
+      text: swap('Admissions open post for B.Tech 2027 at JUET Guna. Apply on the university website.'),
+      why: 'Admission season is when prospective students and parents check the page most.',
+    },
+  ];
+}
 
 /* -------------------------------------------------------
    HEADER TOGGLE
@@ -244,6 +255,9 @@ function AdjustStepper({
 
 export default function CreatePostScreen() {
   const { brandKit } = useBrandKit();
+  // Short organisation name for prompts, and the handle shown on the preview.
+  const orgShort = /jaypee|juet/i.test(brandKit.orgName || '') || !brandKit.orgName ? 'JUET Guna' : brandKit.orgName;
+  const suggestions = useMemo(() => buildSuggestions(orgShort), [orgShort]);
 
   // Built-in post types plus this account's reference designs.
   const postTypes = useMemo(
@@ -326,6 +340,7 @@ export default function CreatePostScreen() {
   // for this account (the laptop checks the account when posting).
   const [igStatus, setIgStatus] = useState({ enabled: false, username: '' });
   const [igPosting, setIgPosting] = useState(false);
+  const previewHandle = igStatus.username || orgShort.toLowerCase().replace(/[^a-z0-9]+/g, '.');
   useEffect(() => {
     if (modalStage === 'preview') getInstagramStatus().then(setIgStatus);
   }, [modalStage]);
@@ -904,13 +919,13 @@ export default function CreatePostScreen() {
               <View style={styles.postHeader}>
                 <View style={styles.postAvatar}>
                   <Text style={styles.postAvatarText}>
-                    F
+                    {previewHandle.charAt(0).toUpperCase()}
                   </Text>
                 </View>
 
                 <View style={styles.postAccount}>
                   <Text style={styles.postAccountName}>
-                    fernwood.studio
+                    {previewHandle}
                   </Text>
 
                   <Text style={styles.postAccountMeta}>
@@ -947,17 +962,17 @@ export default function CreatePostScreen() {
                   ) : (
                     <View style={styles.placeholderArtwork}>
                       <Text style={styles.placeholderEmoji}>
-                        🏺
+                        🎓
                       </Text>
 
                       <Text style={styles.placeholderTitle}>
-                        Autumn Ceramics
+                        {orgShort}
                       </Text>
 
                       <Text
                         style={styles.placeholderSubtitle}
                       >
-                        Handmade • Small batch
+                        Your post will appear here
                       </Text>
                     </View>
                 )}
@@ -991,7 +1006,7 @@ export default function CreatePostScreen() {
 
                 <Text style={styles.postCaption}>
                   <Text style={styles.postCaptionBold}>
-                    fernwood.studio
+                    {previewHandle}
                   </Text>{' '}
                   {generatedCaption}
                 </Text>
@@ -1448,7 +1463,7 @@ export default function CreatePostScreen() {
             Suggested from your analytics
           </Text>
 
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <TouchableOpacity
               key={s.id}
               style={styles.suggestionCard}
@@ -1459,6 +1474,9 @@ export default function CreatePostScreen() {
             >
               <Text style={styles.suggestionText}>
                 {s.text}
+              </Text>
+              <Text style={styles.suggestionWhy}>
+                {s.why}
               </Text>
             </TouchableOpacity>
           ))}
@@ -2465,6 +2483,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: DARK_TEXT,
     lineHeight: 17,
+  },
+
+  suggestionWhy: {
+    fontSize: 11,
+    color: GRAY_TEXT,
+    lineHeight: 15,
+    marginTop: 6,
   },
 
   /* =====================================================

@@ -31,53 +31,23 @@ const BLUE_BG = '#E9F0FC';
 const POSTS = [
   {
     id: 'p1',
-    title: 'Warm from the kiln — autumn ceramics collection…',
-    author: 'Maya Chen',
+    title: 'Placement season 2026: congratulations to our selected students',
+    author: 'Training & Placement Cell',
     status: 'Pending review',
     platform: 'Instagram',
     caption:
-      'Warm from the kiln 🔥 Our autumn ceramics collection is here — small-batch, hand-glazed, made to be lived with.',
-    icon: '🏺',
+      'A proud moment for JUET Guna! 🎓 Congratulations to all our students selected in this season’s campus placement drives. Your hard work has paid off, and we wish you the very best for the journey ahead. #JUETGuna #Placements2026',
+    icon: '🎓',
   },
   {
     id: 'p2',
-    title: 'Behind the scenes: glaze mixing process',
-    author: 'Jordan Lee',
-    status: 'Pending review',
-    platform: 'Instagram',
-    caption:
-      'Ever wondered how we get that exact matte sage finish? Here is two minutes of glaze mixing, no narration, just the process.',
-    icon: '🎨',
-  },
-  {
-    id: 'p3',
-    title: 'Weekend studio hours + workshop signup link',
-    author: 'Maya Chen',
+    title: 'National Hackathon at JUET: registrations open',
+    author: 'Computer Science Department',
     status: 'Scheduled',
-    platform: 'LinkedIn',
-    caption:
-      'Studio is open Sat–Sun, 10–4. Beginner wheel-throwing workshop still has 3 spots left — link in bio.',
-    icon: '🗓️',
-  },
-  {
-    id: 'p4',
-    title: 'Customer feature: The Whitfield family kitchen',
-    author: 'Sam Okafor',
-    status: 'Published',
     platform: 'Instagram',
     caption:
-      'We love seeing our pieces find a home. The Whitfield family kitchen, styled beautifully as always.',
-    icon: '🏡',
-  },
-  {
-    id: 'p5',
-    title: 'New restock: bestselling mug set is back',
-    author: 'Jordan Lee',
-    status: 'Failed — retrying',
-    platform: 'Instagram',
-    caption:
-      'They’re back! The four-mug stoneware set sold out in nine hours last time — restocked as of this morning.',
-    icon: '☕',
+      'Code, build and compete! 💻 Registrations are now open for the 24 hour National Hackathon at JUET Guna. Open to all branches, teams of 2 to 4. Register through the link in bio. #JUETGuna #Hackathon',
+    icon: '💻',
   },
 ];
 

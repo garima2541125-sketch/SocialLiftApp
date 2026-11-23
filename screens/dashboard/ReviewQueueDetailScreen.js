@@ -9,12 +9,21 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DashboardShell from './DashboardShell';
+import { useAuth } from '../../src/context/AuthContext';
+
+// Next Friday, e.g. "Fri, Nov 27 2026", as the default schedule date.
+function nextFriday() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((12 - d.getDay()) % 7 || 7));
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + d.getFullYear();
+}
 
 export default function ReviewQueueDetailScreen({ postId }) {
+  const { user } = useAuth();
   const router = useRouter();
 
   const [mode, setMode] = useState('schedule');
-  const [date, setDate] = useState('Fri, Aug 7 2026');
+  const [date, setDate] = useState(nextFriday);
   const [time, setTime] = useState('9:30 AM');
 
   return (
@@ -37,7 +46,7 @@ export default function ReviewQueueDetailScreen({ postId }) {
           </Text>
 
           <Text style={styles.subtitle}>
-            Approved by Priya Raman · Instagram
+            Approved by {user?.name || 'the page owner'} · Instagram
           </Text>
 
           {/* TOGGLE */}

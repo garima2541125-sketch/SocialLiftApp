@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import DashboardShell from './DashboardShell';
 import { useAuth } from '../../src/context/AuthContext';
+import { loadInstagramAccount } from '../../src/ai/instagram';
 import { useTheme } from '../../src/context/ThemeContext';
 
 const PURPLE = '#6C5CE7';
@@ -83,7 +84,7 @@ const CONNECTOR_DEFS = [
 ];
 
 export default function DashboardSettingsScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, getToken } = useAuth();
   const router = useRouter();
 
   // ---- Appearance (wired to the real ThemeContext, not local state) ----
@@ -120,6 +121,29 @@ export default function DashboardSettingsScreen() {
     CONNECTOR_DEFS.map((c) => ({ ...c, connected: false }))
   );
   const [connecting, setConnecting] = useState(null);
+
+  // The Instagram account linked to this account on the AI laptop (or the
+  // last copy saved to the account) shows as connected, with its handle.
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) return undefined;
+    loadInstagramAccount(user.uid, getToken)
+      .then((result) => {
+        if (cancelled || !result) return;
+        const { username, followers } = result.data;
+        setConnectors((prev) =>
+          prev.map((c) =>
+            c.key === 'instagram'
+              ? { ...c, connected: true, linked: true, subtitle: `Connected as @${username}${followers ? ` · ${followers} followers` : ''}` }
+              : c
+          )
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
 
   const handleConnect = (key) => {
     setConnecting(key);
@@ -263,7 +287,11 @@ export default function DashboardSettingsScreen() {
               subtitle={c.subtitle}
               isLast={i === connectors.length - 1}
               right={
-                c.connected ? (
+                c.linked ? (
+                  <View style={styles.connectedBadge}>
+                    <Text style={styles.connectedBadgeText}>✓ Connected</Text>
+                  </View>
+                ) : c.connected ? (
                   <TouchableOpacity style={styles.connectedBadge} onPress={() => handleDisconnect(c.key)} activeOpacity={0.85}>
                     <Text style={styles.connectedBadgeText}>✓ Connected</Text>
                   </TouchableOpacity>
@@ -497,7 +525,7 @@ export default function DashboardSettingsScreen() {
                   icon={c.icon}
                   iconBg={c.iconBg}
                   title={c.name}
-                  subtitle={c.connected ? 'Connected' : 'Not connected'}
+                  subtitle={c.linked ? c.subtitle : c.connected ? 'Connected' : 'Not connected'}
                   isLast={c.key === connectors[connectors.length - 1].key}
                   right={
                     c.connected ? (

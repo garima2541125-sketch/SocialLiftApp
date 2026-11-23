@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import DashboardShell from "./DashboardShell";
+import { useAuth } from "../../src/context/AuthContext";
 import { getPostById } from "./reviewQueueData";
 
 const DARK_TEXT = "#1A1A1A";
@@ -9,13 +10,21 @@ const GRAY_TEXT = "#6B6B6B";
 const BORDER = "#E7E3D9";
 const PURPLE = "#5B4FE0";
 
+// Next Friday, e.g. "Fri, Nov 27 2026", as the default schedule date.
+function nextFriday() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((12 - d.getDay()) % 7 || 7));
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + d.getFullYear();
+}
+
 export default function ReadyToGoLiveScreen() {
+  const { user } = useAuth();
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const post = getPostById(id);
 
   const [mode, setMode] = useState("schedule"); // "now" | "schedule"
-  const [date, setDate] = useState("Fri, Aug 7 2026");
+  const [date, setDate] = useState(nextFriday);
   const [time, setTime] = useState("9:30 AM");
 
   const handleSchedulePost = () => {
@@ -28,7 +37,7 @@ export default function ReadyToGoLiveScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Ready to go live</Text>
         <Text style={styles.subtitle}>
-          Approved by Priya Raman · {post?.platform ?? "Instagram"}
+          Approved by {user?.name || 'the page owner'} · {post?.platform ?? "Instagram"}
         </Text>
 
         <View style={styles.toggleRow}>

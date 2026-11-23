@@ -6,6 +6,8 @@
 // time, but not reach or impressions (that needs Meta's
 // instagram_manage_insights permission), so engagement is likes + comments.
 
+import { nextOccasion } from './occasions';
+
 const DAY = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -246,5 +248,18 @@ export function buildRecommendations(data, now = Date.now()) {
     }
   }
 
-  return [...recs, ...JUET_IDEAS].slice(0, 3);
+  return [...recs, occasionIdea(new Date(now)), ...JUET_IDEAS].slice(0, 3);
+}
+
+// A greeting for the next day the university usually marks.
+export function occasionIdea(now = new Date()) {
+  const o = nextOccasion(now);
+  return {
+    tag: 'Greeting',
+    title: `${o.name} greeting from JUET`,
+    summary: `${o.name} is ${o.when} (${o.date}). Greetings keep the page active between announcements`,
+    detail: `Post a simple ${o.name} greeting in JUET's colours with the logo, one short wish and no event details, so it reads as a greeting rather than a notice. In Create, type: "${o.prompt}".`,
+    suggestedTime: o.days <= 1 ? 'Today, 9:00 AM' : `${o.date}, 9:00 AM`,
+    expectedLift: 'Steady likes from students and alumni',
+  };
 }

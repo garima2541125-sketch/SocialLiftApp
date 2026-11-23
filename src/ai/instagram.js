@@ -4,6 +4,7 @@
 // Only available while using a shared AI link (aiServer().shared).
 
 import { aiServer } from './aiServer';
+import { loadInstagramSnapshot, saveInstagramSnapshot } from '../firebase/instagramStore';
 
 function instagramBase() {
   const server = aiServer();
@@ -29,11 +30,29 @@ export async function getInstagramAnalytics(idToken) {
   const base = instagramBase();
   if (!base || !idToken) return null;
   try {
-    const res = await fetch(`${base}/analytics`, { headers: { Authorization: `Bearer ${idToken}` } });
+    const res = await fetch(`${base}/analytics`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+      signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined,
+    });
     return res.ok ? await res.json() : null;
   } catch {
     return null;
   }
+}
+
+// The account's linked Instagram: live from the laptop when the sharing link
+// works (and saved to the account for later), otherwise the last saved copy.
+// Returns { data, live, savedAt } or null when the account has no Instagram.
+export async function loadInstagramAccount(uid, getToken) {
+  if (!uid) return null;
+  const token = await getToken().catch(() => null);
+  const live = await getInstagramAnalytics(token);
+  if (live) {
+    saveInstagramSnapshot(uid, live).catch(() => {});
+    return { data: live, live: true, savedAt: Date.now() };
+  }
+  const saved = await loadInstagramSnapshot(uid).catch(() => null);
+  return saved?.username ? { data: saved, live: false, savedAt: saved.savedAt } : null;
 }
 
 function loadImage(uri) {
