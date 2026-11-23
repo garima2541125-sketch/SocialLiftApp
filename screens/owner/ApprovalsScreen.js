@@ -26,7 +26,7 @@ function ApprovalCard({ item, expanded, onToggle, onApprove, onReject }) {
           <Text style={styles.captionLabel}>Caption</Text>
           <Text style={styles.captionText}>{item.caption}</Text>
 
-          <Text style={styles.captionLabel}>Feedback (optional, sent to {item.author.split(' ')[0]})</Text>
+          <Text style={styles.captionLabel}>Feedback (optional, sent to {item.author})</Text>
           <TextInput
             style={styles.noteInput}
             placeholder="e.g. Can we swap the last photo for the wider shot?"

@@ -337,7 +337,7 @@ const handleCreateAccount = async () => {
     style={styles.input}
     value={fullName}
     onChangeText={setFullName}
-    placeholder="Maya Chen"
+    placeholder="Your name"
     placeholderTextColor="#B9B6AC"
   />
 </View>
@@ -352,7 +352,7 @@ const handleCreateAccount = async () => {
     style={[styles.input, !!user?.email && styles.inputLocked]}
     value={email}
     onChangeText={setEmail}
-    placeholder="maya@fernwoodstudio.com"
+    placeholder="you@juet.ac.in"
     placeholderTextColor="#B9B6AC"
     keyboardType="email-address"
     autoCapitalize="none"

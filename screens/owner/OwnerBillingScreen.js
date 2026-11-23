@@ -44,7 +44,7 @@ function PlanOption({ p, current, onSelect }) {
 }
 
 export default function OwnerBillingScreen() {
-  const { plan, plans, team, aiGenerationsUsed, connectedAccounts, renewsOn, invoices, upgradePlan } = useOwnerData();
+  const { studioName, plan, plans, team, aiGenerationsUsed, connectedAccounts, renewsOn, invoices, upgradePlan } = useOwnerData();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [downloadedId, setDownloadedId] = useState(null);
 
@@ -55,7 +55,7 @@ export default function OwnerBillingScreen() {
 
   const handleDownload = (invoice) => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const text = `Fernwood Studio — Social Lift invoice\nDate: ${invoice.date}\nAmount: $${invoice.amount.toFixed(2)}\nStatus: ${invoice.status}\n`;
+      const text = `${studioName} — Social Lift invoice\nDate: ${invoice.date}\nAmount: $${invoice.amount.toFixed(2)}\nStatus: ${invoice.status}\n`;
       const blob = new Blob([text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

@@ -89,7 +89,7 @@ export default function TeamSeatsScreen() {
           <View style={styles.inviteRow}>
             <TextInput
               style={styles.inviteInput}
-              placeholder="name@fernwoodstudio.com"
+              placeholder="name@juet.ac.in"
               placeholderTextColor="#B9B6AC"
               value={email}
               onChangeText={setEmail}

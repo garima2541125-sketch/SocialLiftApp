@@ -30,7 +30,7 @@ function QuickCard({ eyebrow, title, subtitle, onPress }) {
 export default function OwnerOverviewScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { team, approvals, brandKits, plan, renewsOn, postsThisMonth, decideApproval } = useOwnerData();
+  const { studioName, team, approvals, brandKits, plan, renewsOn, postsThisMonth, decideApproval } = useOwnerData();
 
   const firstName = (user?.name || 'there').split(' ')[0];
   const seatsFree = Math.max(plan.seatsMax - team.length, 0);
@@ -41,7 +41,7 @@ export default function OwnerOverviewScreen() {
   return (
     <OwnerDashboardShell active="overview" title="Overview">
       <Text style={styles.welcome}>Welcome back, {firstName}</Text>
-      <Text style={styles.welcomeSub}>Here's what's happening across Fernwood Studio.</Text>
+      <Text style={styles.welcomeSub}>Here's what's happening across {studioName}.</Text>
 
       <View style={styles.statsRow}>
         <StatCard

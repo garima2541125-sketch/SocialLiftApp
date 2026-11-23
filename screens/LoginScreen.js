@@ -277,7 +277,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="maya@fernwoodstudio.com"
+                placeholder="you@juet.ac.in"
                 placeholderTextColor="#B9B6AC"
                 keyboardType="email-address"
                 autoCapitalize="none"

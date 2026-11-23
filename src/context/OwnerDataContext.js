@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 
 const OwnerDataContext = createContext(null);
 
-const STUDIO_NAME = 'Fernwood Studio';
+const STUDIO_NAME = 'JUET Guna';
 
 const PLANS = {
   studio: { id: 'studio', name: 'Studio', price: 89, seatsMax: 10, aiGenMax: 500, connectedMax: 5 },
@@ -11,56 +11,34 @@ const PLANS = {
 };
 
 const INITIAL_TEAM = [
-  { id: 't1', name: 'Priya Raman', email: 'priya@fernwoodstudio.com', role: 'Owner', status: 'Active', lastActive: 'None' },
-  { id: 't2', name: 'Maya Chen', email: 'maya@fernwoodstudio.com', role: 'Creator', status: 'Active', lastActive: '2 hours ago' },
-  { id: 't3', name: 'Jordan Lee', email: 'jordan@fernwoodstudio.com', role: 'Creator', status: 'Active', lastActive: 'Yesterday' },
-  { id: 't4', name: 'Sam Okafor', email: 'sam@fernwoodstudio.com', role: 'Creator', status: 'Active', lastActive: '4 days ago' },
-  { id: 't5', name: 'Riley Park', email: 'riley@fernwoodstudio.com', role: 'Viewer', status: 'Invited', lastActive: '—' },
+  { id: 't1', name: 'JUET Social Media Cell', email: 'socialmedia@juet.ac.in', role: 'Owner', status: 'Active', lastActive: 'Now' },
+  { id: 't2', name: 'Training & Placement Cell', email: 'placements@juet.ac.in', role: 'Creator', status: 'Active', lastActive: '2 hours ago' },
+  { id: 't3', name: 'Computer Science Department', email: 'cse@juet.ac.in', role: 'Creator', status: 'Active', lastActive: 'Yesterday' },
+  { id: 't4', name: 'Cultural Committee', email: 'cultural@juet.ac.in', role: 'Creator', status: 'Active', lastActive: '3 days ago' },
+  { id: 't5', name: 'Admissions Office', email: 'admissions@juet.ac.in', role: 'Viewer', status: 'Invited', lastActive: '—' },
 ];
 
 const INITIAL_APPROVALS = [
   {
     id: 'a1',
-    title: 'Waste from the kiln — autumn ceramics collection',
-    author: 'Maya Chen',
+    title: 'Placement season 2026: congratulations to our selected students',
+    author: 'Training & Placement Cell',
     platform: 'Instagram',
-    submitted: '3 hours ago',
-    emoji: '🏺',
+    submitted: '2 hours ago',
+    emoji: '🎓',
     caption:
-      "Nothing goes to waste in the studio — even our test glazes find a home. Here's a peek at how the autumn collection comes together, from raw clay to the kiln. Swipe to see the finished mugs going out this week.",
+      'A proud moment for JUET Guna! 🎓 Congratulations to all our students selected in this season’s campus placement drives. Your hard work has paid off, and we wish you the very best for the journey ahead. #JUETGuna #Placements2026',
     status: 'pending',
   },
   {
     id: 'a2',
-    title: 'Behind the scenes: glaze mixing process',
-    author: 'Jordan Lee',
-    platform: 'TikTok',
-    submitted: '5 hours ago',
-    emoji: '🎨',
-    caption:
-      "Ever wondered how we get that signature blue-green glaze? Here's a 30-second look at mixing, testing, and dipping — plus the one ingredient we never skip.",
-    status: 'pending',
-  },
-  {
-    id: 'a3',
-    title: 'Weekend studio hours + workshop signup link',
-    author: 'Priya Raman',
+    title: 'Constitution Day greeting',
+    author: 'Cultural Committee',
     platform: 'Instagram',
     submitted: 'Yesterday',
-    emoji: '📅',
+    emoji: '🇮🇳',
     caption:
-      "We're open extra hours this Saturday and Sunday, 10am–5pm. Beginner wheel-throwing workshop still has 3 spots left — link in bio to save yours.",
-    status: 'pending',
-  },
-  {
-    id: 'a4',
-    title: 'New restock: bestselling mug set is back',
-    author: 'Sam Okafor',
-    platform: 'Instagram',
-    submitted: 'Yesterday',
-    emoji: '☕',
-    caption:
-      "It's back! Our best-selling speckled mug set just came out of the kiln and is restocked in the shop. Limited run — once they're gone, they're gone until next season.",
+      'On Constitution Day, JUET Guna honours the values that guide our nation: justice, liberty, equality and fraternity. #ConstitutionDay #JUETGuna',
     status: 'pending',
   },
 ];
@@ -68,25 +46,25 @@ const INITIAL_APPROVALS = [
 const INITIAL_BRAND_KITS = [
   {
     id: 'b1',
-    name: 'Fernwood Studio — Core',
-    font: 'Freight Text',
-    tone: 'Warm, handcrafted, unhurried',
-    colors: ['#6C5CE7', '#EDE8E0', '#15141A'],
+    name: 'JUET Guna — Official',
+    font: 'Montserrat',
+    tone: 'Formal, proud and welcoming',
+    colors: ['#1F3C88', '#F2B705', '#FFFFFF'],
   },
   {
     id: 'b2',
-    name: 'Fernwood Studio — Autumn Collection',
-    font: 'Freight Text',
-    tone: 'Cozy, earthy, seasonal',
-    colors: ['#B5651D', '#EFC88B', '#3F2E22'],
+    name: 'JUET Guna — Festive greetings',
+    font: 'Playfair Display',
+    tone: 'Warm, celebratory and simple',
+    colors: ['#8B1E3F', '#F2B705', '#FFF8E7'],
   },
 ];
 
 const INITIAL_INVOICES = [
-  { id: 'i1', date: 'Jul 12, 2026', amount: 89, status: 'Paid' },
-  { id: 'i2', date: 'Jun 12, 2026', amount: 89, status: 'Paid' },
-  { id: 'i3', date: 'May 12, 2026', amount: 89, status: 'Paid' },
-  { id: 'i4', date: 'Apr 12, 2026', amount: 79, status: 'Paid' },
+  { id: 'i1', date: 'Nov 12, 2026', amount: 89, status: 'Paid' },
+  { id: 'i2', date: 'Oct 12, 2026', amount: 89, status: 'Paid' },
+  { id: 'i3', date: 'Sep 12, 2026', amount: 89, status: 'Paid' },
+  { id: 'i4', date: 'Aug 12, 2026', amount: 79, status: 'Paid' },
 ];
 
 export function OwnerDataProvider({ children }) {
@@ -100,7 +78,7 @@ export function OwnerDataProvider({ children }) {
   const [postsThisMonth, setPostsThisMonth] = useState(24);
   const [aiGenerationsUsed] = useState(312);
   const [connectedAccounts] = useState(2);
-  const [renewsOn] = useState('Aug 12, 2026');
+  const [renewsOn] = useState('Dec 12, 2026');
 
   const plan = PLANS[planId];
 
