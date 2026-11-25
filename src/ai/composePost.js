@@ -97,6 +97,7 @@ async function composeSteps({
       analyses,
       imageAspect: designed.aspect,
       misspelt: designed.missing,
+      unexpectedText: designed.unexpected,
       photoCrowded: designed.photoCrowded,
     };
   }

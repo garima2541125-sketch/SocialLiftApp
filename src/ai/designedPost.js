@@ -19,6 +19,8 @@ import { loadImage, maskCoverage, cutOut, drawInBox, drawRing, stampLogo, writeF
 //     if either is misspelt or there's no room for the photo.
 
 const normalise = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+// The words of a piece of text, as written (punctuation and bullets dropped).
+const words = (s) => String(s || '').split(/[^A-Za-z0-9]+/).filter(Boolean);
 const round16 = (n) => Math.max(16, Math.round(n / 16) * 16);
 
 // The design notes, written when the reference was saved (or now, for
@@ -101,12 +103,22 @@ const SINGLE_QUOTED = /(^|[\s(])['‘][^'’]{1,80}['’](?=[\s.,;:!?)]|$)/g;
 // Without a real photo, anything about photos or people goes too: the model
 // would otherwise draw a made-up person in the frame.
 const ABOUT_PEOPLE = /photo|portrait|frame|person|people|face|student|alumn|man\b|woman|girl|boy/i;
-const bodyStyle = (style = '', withPhoto = true) =>
+// A banner, button or pill in the reference's notes makes Qwen-Image draw one
+// on every post - and with nothing asked to go in it, it fills it with
+// invented words ("Studentii ISBBE. Batch Catch"). So these go unless the post
+// has a call to action to put in one.
+const ABOUT_BANNERS = /banner|button|pill|ribbon|capsule|label|tag\b|badge|sticker|rounded (bar|box|shape|strip)/i;
+const bodyStyle = (style = '', withPhoto = true, withBanner = true) =>
   style
     .replace(DOUBLE_QUOTED, '')
     .replace(SINGLE_QUOTED, '$1')
     .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => !NOT_FOR_THE_AI.test(sentence) && (withPhoto || !ABOUT_PEOPLE.test(sentence)))
+    .filter(
+      (sentence) =>
+        !NOT_FOR_THE_AI.test(sentence) &&
+        (withPhoto || !ABOUT_PEOPLE.test(sentence)) &&
+        (withBanner || !ABOUT_BANNERS.test(sentence))
+    )
     .join(' ')
     .replace(/\s{2,}/g, ' ');
 
@@ -123,13 +135,14 @@ function buildPrompt(info, fields, imagePrompt, side, photoStyle) {
     fields.signOff && `near the bottom, small, "${fields.signOff}"`,
   ].filter(Boolean);
   const colours = [...new Set((info.palette || []).map(colourName))];
+  const withBanner = Boolean(fields.callToAction);
 
   // The header and footer bars are drawn empty: the real logo, badges,
   // organisation name and contact details go on them afterwards, exactly.
   return (
     'A brand-new social media post graphic in portrait format: a flat, full-bleed design that fills ' +
     'the entire canvas edge to edge — not a mockup, no frame, border or background around it. ' +
-    `Style: ${bodyStyle(info.style, Boolean(side))} ` +
+    `Style: ${bodyStyle(info.style, Boolean(side), withBanner)} ` +
     (colours.length ? `Colours: ${colours.join(', ')}. ` : '') +
     'Across the very top, a plain light header bar that is completely empty. ' +
     'Across the very bottom, a plain dark footer bar that is completely empty. ' +
@@ -143,7 +156,9 @@ function buildPrompt(info, fields, imagePrompt, side, photoStyle) {
         'No people, faces, portraits, photos or photo frames anywhere in the design. ') +
     'Write each of those texts exactly once, spelt exactly as given, and no other text anywhere: no contact ' +
     'details, no website, no phone numbers, no labels, no numbers or codes, no rows of icons, no logos, ' +
-    'emblems, seals or crests. Clean, professional, generous spacing.'
+    'emblems, seals or crests' +
+    (withBanner ? '' : ', and no banners, buttons, ribbons, pills or labels') +
+    '. Clean, professional, generous spacing.'
   );
 }
 
@@ -296,8 +311,21 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
   ]
     .map((t) => String(t || '').trim())
     .filter(Boolean);
+  // Words the model may legitimately have written. Anything else it drew is
+  // made up - a banner it filled itself, a fake label - and is as wrong on a
+  // public post as a misspelt name.
+  const allowed = new Set(mustRead.flatMap(words).map(normalise));
+  const unexpectedIn = (raw) => {
+    const extra = words(raw).filter((w) => {
+      const n = normalise(w);
+      return n.length >= 3 && !/^\d+$/.test(n) && !allowed.has(n);
+    });
+    // One stray word may be the reader's own slip; two or more are on the poster.
+    return extra.length >= 2 ? [...new Set(extra)] : [];
+  };
   const score = (c) => [
     -c.missing.length,
+    -c.unexpected.length,
     c.spot === null || c.spot?.good ? 1 : 0,
     c.spot?.widthShare ?? 1,
   ];
@@ -326,19 +354,22 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
     };
     const uri = (await generateImage({ imagePrompt: prompt, size, onSlow })).uri;
     onStep?.('checking');
-    const text = normalise(await readImageText(uri));
+    const raw = await readImageText(uri);
+    const text = normalise(raw);
     const candidate = {
       uri,
       missing: mustRead.filter((t) => !text.includes(normalise(t))),
+      unexpected: unexpectedIn(raw),
       // null: the poster couldn't be read for boxes, so the fixed area is used.
       spot: photo ? await choosePhotoSpot(uri, info, size.width, size.height) : null,
     };
     if (!best || better(candidate, best)) best = candidate;
-    if (!best.missing.length && (best.spot === null || best.spot.good)) break;
+    if (!best.missing.length && !best.unexpected.length && (best.spot === null || best.spot.good)) break;
   }
 
   let poster = best.uri;
   const missing = best.missing;
+  const unexpected = best.unexpected;
   let photoCrowded = false;
   if (photo) {
     onStep?.('photo');
@@ -358,5 +389,5 @@ export async function composeDesigned({ reference, fields, imagePrompt, photo, b
   const contact = [brandKit.contactPhone, brandKit.website, brandKit.department].filter(Boolean);
   if (contact.length) poster = await writeFooter(poster, contact, FOOTER_H);
 
-  return { uri: poster, aspect, missing, photoCrowded };
+  return { uri: poster, aspect, missing, unexpected, photoCrowded };
 }

@@ -1969,6 +1969,13 @@ export default function CreatePostScreen() {
                 </Text>
               )}
 
+              {isDesigned && aiResult.unexpectedText?.length > 0 && (
+                <Text style={styles.spellingNote}>
+                  The design may contain text nobody asked for ({aiResult.unexpectedText.slice(0, 4).map((t) => `"${t}"`).join(', ')}).
+                  Check it, and press Regenerate if it's there.
+                </Text>
+              )}
+
               {isDesigned && aiResult.photoCrowded && (
                 <Text style={styles.spellingNote}>
                   The design left little room for the photo, so it may sit close to some text. Press Regenerate
